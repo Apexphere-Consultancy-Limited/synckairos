@@ -12,7 +12,9 @@
       "Bash(pnpm run test:coverage:*)",
       "Bash(pnpm test:unit:*)",
       "Bash(pnpm lint:*)",
-      "Bash(pnpm lint:fix:*)"
+      "Bash(pnpm lint:fix:*)",
+      "Read(//Users/yazang/.claude/skills/developer/**)",
+      "Skill(project-manager)"
     ],
     "deny": [],
     "ask": []
