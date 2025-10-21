@@ -5,7 +5,11 @@
       "Bash(pnpm add -D eslint prettier @typescript-eslint/parser @typescript-eslint/eslint-plugin eslint-config-prettier eslint-plugin-prettier)",
       "Bash(pnpm add dotenv)",
       "Bash(pnpm add express ws ioredis pg bullmq zod jsonwebtoken pino pino-http prom-client express-rate-limit rate-limit-redis cors)",
-      "Bash(pnpm tsc --noEmit)"
+      "Bash(pnpm tsc --noEmit)",
+      "Bash(pnpm test:*)",
+      "Skill(architect)",
+      "Skill(tester)",
+      "Bash(pnpm run test:coverage:*)"
     ],
     "deny": [],
     "ask": []

@@ -5,6 +5,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { RedisStateManager } from '@/state/RedisStateManager'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode, SyncStatus, type SyncState } from '@/types/session'
+import {
+  SessionNotFoundError,
+  ConcurrencyError,
+  StateDeserializationError,
+} from '@/errors/StateErrors'
 import type Redis from 'ioredis'
 
 describe('RedisStateManager - CRUD Operations', () => {
@@ -16,15 +21,16 @@ describe('RedisStateManager - CRUD Operations', () => {
     redisClient = createRedisClient()
     pubSubClient = createRedisPubSubClient()
     stateManager = new RedisStateManager(redisClient, pubSubClient)
-    await redisClient.flushall()
+    // Use flushdb() instead of flushall() to avoid clearing other test databases
+    await redisClient.flushdb()
   })
 
   afterEach(async () => {
     await stateManager.close()
   })
 
-  const createTestState = (sessionId: string): SyncState => ({
-    session_id: sessionId,
+  const createTestState = (sessionId?: string): SyncState => ({
+    session_id: sessionId || `test-session-${Date.now()}-${Math.random()}`,
     sync_mode: SyncMode.PER_PARTICIPANT,
     status: SyncStatus.PENDING,
     version: 1,
@@ -56,20 +62,23 @@ describe('RedisStateManager - CRUD Operations', () => {
 
   describe('createSession', () => {
     it('should create session with version 1', async () => {
-      const state = createTestState('session-1')
+      const state = createTestState()
+      const sessionId = state.session_id
       await stateManager.createSession(state)
 
-      const retrieved = await stateManager.getSession('session-1')
+      const retrieved = await stateManager.getSession(sessionId)
       expect(retrieved).toBeDefined()
       expect(retrieved!.version).toBe(1)
-      expect(retrieved!.session_id).toBe('session-1')
+      expect(retrieved!.session_id).toBe(sessionId)
     })
 
     it('should set created_at and updated_at timestamps', async () => {
-      const state = createTestState('session-2')
+      const state = createTestState()
+      const sessionId = state.session_id
       await stateManager.createSession(state)
 
-      const retrieved = await stateManager.getSession('session-2')
+      const retrieved = await stateManager.getSession(sessionId)
+      expect(retrieved).toBeDefined()
       expect(retrieved!.created_at).toBeInstanceOf(Date)
       expect(retrieved!.updated_at).toBeInstanceOf(Date)
     })
@@ -77,38 +86,42 @@ describe('RedisStateManager - CRUD Operations', () => {
 
   describe('getSession', () => {
     it('should return session when exists', async () => {
-      const state = createTestState('session-3')
+      const state = createTestState()
+      const sessionId = state.session_id
       await stateManager.createSession(state)
 
-      const retrieved = await stateManager.getSession('session-3')
+      const retrieved = await stateManager.getSession(sessionId)
       expect(retrieved).toBeDefined()
-      expect(retrieved!.session_id).toBe('session-3')
+      expect(retrieved!.session_id).toBe(sessionId)
       expect(retrieved!.sync_mode).toBe(SyncMode.PER_PARTICIPANT)
       expect(retrieved!.status).toBe(SyncStatus.PENDING)
       expect(retrieved!.participants).toHaveLength(2)
     })
 
     it('should return null when not found', async () => {
-      const retrieved = await stateManager.getSession('nonexistent')
+      const retrieved = await stateManager.getSession(`nonexistent-${Date.now()}`)
       expect(retrieved).toBeNull()
     })
 
-    it('should handle JSON parse errors gracefully', async () => {
-      // Manually insert invalid JSON
-      await redisClient.set('session:invalid', 'not-valid-json')
+    it('should throw StateDeserializationError on JSON parse errors', async () => {
+      const invalidSessionId = `invalid-${Date.now()}`
+      // Manually insert invalid JSON with TTL
+      await redisClient.setex(`session:${invalidSessionId}`, 3600, 'not-valid-json')
 
-      const retrieved = await stateManager.getSession('invalid')
-      expect(retrieved).toBeNull()
+      await expect(stateManager.getSession(invalidSessionId)).rejects.toThrow(StateDeserializationError)
+      await expect(stateManager.getSession(invalidSessionId)).rejects.toThrow('Failed to deserialize state')
     })
 
     it('should deserialize Date objects correctly', async () => {
-      const state = createTestState('session-dates')
+      const state = createTestState()
+      const sessionId = state.session_id
       state.session_started_at = new Date('2025-01-01T00:00:00Z')
       state.cycle_started_at = new Date('2025-01-01T00:05:00Z')
 
       await stateManager.createSession(state)
 
-      const retrieved = await stateManager.getSession('session-dates')
+      const retrieved = await stateManager.getSession(sessionId)
+      expect(retrieved).toBeDefined()
       expect(retrieved!.session_started_at).toBeInstanceOf(Date)
       expect(retrieved!.cycle_started_at).toBeInstanceOf(Date)
       expect(retrieved!.session_started_at!.toISOString()).toBe('2025-01-01T00:00:00.000Z')
@@ -117,33 +130,42 @@ describe('RedisStateManager - CRUD Operations', () => {
 
   describe('updateSession', () => {
     it('should update session and increment version', async () => {
-      const state = createTestState('session-4')
+      const sessionId = `session-update-${Date.now()}`
+      const state = createTestState(sessionId)
       await stateManager.createSession(state)
 
-      const current = await stateManager.getSession('session-4')
-      await stateManager.updateSession('session-4', {
+      const current = await stateManager.getSession(sessionId)
+      expect(current).toBeDefined()
+      await stateManager.updateSession(sessionId, {
         ...current!,
         status: SyncStatus.RUNNING,
       })
 
-      const updated = await stateManager.getSession('session-4')
+      const updated = await stateManager.getSession(sessionId)
+      expect(updated).toBeDefined()
       expect(updated!.status).toBe(SyncStatus.RUNNING)
       expect(updated!.version).toBe(2) // Incremented from 1 to 2
     })
 
     it('should refresh TTL on each update', async () => {
-      const state = createTestState('session-5')
+      const sessionId = `session-ttl-${Date.now()}`
+      const state = createTestState(sessionId)
       await stateManager.createSession(state)
 
-      const ttlBefore = await redisClient.ttl('session:session-5')
+      const ttlBefore = await redisClient.ttl(`session:${sessionId}`)
       expect(ttlBefore).toBeGreaterThan(0)
       expect(ttlBefore).toBeLessThanOrEqual(3600)
 
-      // Update and check TTL is refreshed
-      const current = await stateManager.getSession('session-5')
-      await stateManager.updateSession('session-5', current!)
+      // Small delay to ensure time passes
+      await new Promise(resolve => setTimeout(resolve, 100))
 
-      const ttlAfter = await redisClient.ttl('session:session-5')
+      // Update and check TTL is refreshed
+      const current = await stateManager.getSession(sessionId)
+      expect(current).toBeDefined()
+      await stateManager.updateSession(sessionId, current!)
+
+      const ttlAfter = await redisClient.ttl(`session:${sessionId}`)
+      // Should be refreshed - at least greater than before minus the delay
       expect(ttlAfter).toBeGreaterThan(3500) // Should be close to 3600
     })
   })
@@ -172,13 +194,14 @@ describe('RedisStateManager - CRUD Operations', () => {
 
   describe('Optimistic Locking', () => {
     it('should throw error on version mismatch', async () => {
-      const sessionId = 'test-session-lock-1'
+      const sessionId = `test-session-lock-${Date.now()}-1`
       const initialState = createTestState(sessionId)
 
       await stateManager.createSession(initialState)
 
       // Simulate concurrent update by another instance
       const current = await stateManager.getSession(sessionId)
+      expect(current).toBeDefined()
       await stateManager.updateSession(sessionId, {
         ...current!,
         status: SyncStatus.RUNNING,
@@ -187,15 +210,16 @@ describe('RedisStateManager - CRUD Operations', () => {
       // This should fail due to version mismatch (version is now 2)
       await expect(
         stateManager.updateSession(sessionId, initialState, 1)
-      ).rejects.toThrow('Concurrent modification detected')
+      ).rejects.toThrow(ConcurrencyError)
     })
 
     it('should successfully update when version matches', async () => {
-      const sessionId = 'test-session-lock-2'
+      const sessionId = `test-session-lock-${Date.now()}-2`
       const initialState = createTestState(sessionId)
 
       await stateManager.createSession(initialState)
       const current = await stateManager.getSession(sessionId)
+      expect(current).toBeDefined()
 
       // This should succeed with correct version
       await stateManager.updateSession(
@@ -205,16 +229,137 @@ describe('RedisStateManager - CRUD Operations', () => {
       )
 
       const updated = await stateManager.getSession(sessionId)
+      expect(updated).toBeDefined()
       expect(updated!.status).toBe(SyncStatus.RUNNING)
       expect(updated!.version).toBe(current!.version + 1)
     })
 
-    it('should throw error when session not found during optimistic lock check', async () => {
+    it('should throw SessionNotFoundError when session not found during optimistic lock check', async () => {
       const state = createTestState('nonexistent')
 
       await expect(
         stateManager.updateSession('nonexistent', state, 1)
-      ).rejects.toThrow('Session nonexistent not found')
+      ).rejects.toThrow(SessionNotFoundError)
+    })
+  })
+
+  describe('Redis Pub/Sub - Session Updates', () => {
+    it('should broadcast update when session is updated', async () => {
+      const sessionId = 'pubsub-test-1'
+      const state = createTestState(sessionId)
+
+      await stateManager.createSession(state)
+
+      const updates: string[] = []
+
+      // Subscribe to updates
+      stateManager.subscribeToUpdates((sid, _state) => {
+        updates.push(sid)
+      })
+
+      // Wait for subscription to be established
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Update session (should trigger broadcast)
+      const current = await stateManager.getSession(sessionId)
+      await stateManager.updateSession(sessionId, {
+        ...current!,
+        status: SyncStatus.RUNNING,
+      })
+
+      // Wait for message to be received
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      expect(updates).toContain(sessionId)
+    })
+
+    it('should broadcast deletion when session is deleted', async () => {
+      const sessionId = 'pubsub-test-2'
+      const state = createTestState(sessionId)
+
+      await stateManager.createSession(state)
+
+      const deletions: string[] = []
+
+      // Subscribe to updates (deletions are broadcast on same channel)
+      stateManager.subscribeToUpdates((sid) => {
+        deletions.push(sid)
+      })
+
+      // Wait for subscription to be established
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Delete session (should trigger broadcast)
+      await stateManager.deleteSession(sessionId)
+
+      // Wait for message to be received
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      expect(deletions).toContain(sessionId)
+    })
+  })
+
+  describe('Redis Pub/Sub - WebSocket Broadcasting', () => {
+    it('should broadcast message to specific session', async () => {
+      const sessionId = `ws-test-${Date.now()}`
+      const testMessage = { type: 'sync-update', data: 'test' }
+
+      const receivedMessages: Array<{ sessionId: string; message: unknown }> = []
+
+      // Subscribe to WebSocket messages
+      stateManager.subscribeToWebSocket((sid, msg) => {
+        if (sid === sessionId) {
+          receivedMessages.push({ sessionId: sid, message: msg })
+        }
+      })
+
+      // Wait for subscription to be established
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Broadcast message
+      await stateManager.broadcastToSession(sessionId, testMessage)
+
+      // Wait for message to be received
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      expect(receivedMessages.length).toBeGreaterThanOrEqual(1)
+      expect(receivedMessages[0].sessionId).toBe(sessionId)
+      expect(receivedMessages[0].message).toEqual(testMessage)
+    })
+
+    it('should receive messages for all sessions via pattern subscription', async () => {
+      const timestamp = Date.now()
+      const session1 = `ws-test-multi-${timestamp}-1`
+      const session2 = `ws-test-multi-${timestamp}-2`
+      const message1 = { type: 'tick', data: 1 }
+      const message2 = { type: 'tick', data: 2 }
+
+      const receivedMessages: Array<{ sessionId: string; message: unknown }> = []
+
+      // Subscribe to all WebSocket messages for these specific sessions
+      stateManager.subscribeToWebSocket((sid, msg) => {
+        if (sid === session1 || sid === session2) {
+          receivedMessages.push({ sessionId: sid, message: msg })
+        }
+      })
+
+      // Wait for subscription to be established
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Broadcast to multiple sessions
+      await stateManager.broadcastToSession(session1, message1)
+      await stateManager.broadcastToSession(session2, message2)
+
+      // Wait for messages to be received
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      expect(receivedMessages.length).toBeGreaterThanOrEqual(2)
+      const msg1 = receivedMessages.find(m => m.sessionId === session1)
+      const msg2 = receivedMessages.find(m => m.sessionId === session2)
+      expect(msg1).toBeDefined()
+      expect(msg2).toBeDefined()
+      expect(msg1!.message).toEqual(message1)
+      expect(msg2!.message).toEqual(message2)
     })
   })
 })
