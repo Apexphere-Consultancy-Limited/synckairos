@@ -1,23 +1,22 @@
-# Task Tracking - Phase 1
+# Task Tracking - Phase 2
 
-**Phase:** 1 - Core Architecture
-**Duration:** Week 1 (5-7 days)
-**Overall Status:** 🟡 In Progress
-**Overall Progress:** 80%
-**Started:** 2025-10-21
+**Phase:** 2 - Business Logic & API
+**Duration:** Week 2 (6-8 days)
+**Overall Status:** 🔴 Not Started
+**Overall Progress:** 0%
+**Started:** _____
 **Target Completion:** _____
 
 ---
 
 ## Quick Status Overview
 
-| Task | Component | Priority | Est. Time | Status | Progress | Assigned | Started | Completed |
-|------|-----------|----------|-----------|--------|----------|----------|---------|-----------|
-| [1.1](tasks/TASK_1.1_PROJECT_SETUP.md) | Project Setup | High | 0.5 days | 🟢 | 100% | Claude | 2025-10-21 | 2025-10-21 |
-| [1.2](tasks/TASK_1.2_REDIS_STATE_MANAGER.md) | RedisStateManager | ⭐ CRITICAL | 2-3 days | 🟢 | 100% | Claude | 2025-10-21 | 2025-10-21 |
-| [1.3](tasks/TASK_1.3_POSTGRESQL_SCHEMA.md) | PostgreSQL Schema | Medium | 1 day | 🟢 | 100% | Claude | 2025-10-21 | 2025-10-21 |
-| [1.4](tasks/TASK_1.4_DBWRITEQUEUE.md) | DBWriteQueue | Medium | 1-2 days | 🟢 | 100% | Claude | 2025-10-21 | 2025-10-21 |
-| [1.5](tasks/TASK_1.5_VALIDATION.md) | Validation | High | 0.5 days | 🔴 | 0% | _____ | _____ | _____ |
+| Task | Component | Priority | Est. Time | Status | Progress | Started | Completed |
+|------|-----------|----------|-----------|--------|----------|---------|-----------|
+| [2.1](tasks/TASK_2.1_SYNCENGINE.md) | SyncEngine | ⭐ CRITICAL | 2-3 days | 🔴 | 0% | _____ | _____ |
+| [2.2](tasks/TASK_2.2_REST_API.md) | REST API | ⭐ CRITICAL | 2-3 days | 🔴 | 0% | _____ | _____ |
+| [2.3](tasks/TASK_2.3_VALIDATION.md) | Request Validation | Medium | 1 day | 🔴 | 0% | _____ | _____ |
+| [2.4](tasks/TASK_2.4_WEBSOCKET.md) | WebSocket Server | ⭐ CRITICAL | 2 days | 🔴 | 0% | _____ | _____ |
 
 **Status Legend:**
 - 🔴 Not Started
@@ -32,225 +31,215 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     PHASE 1 TASK FLOW                       │
+│                     PHASE 2 TASK FLOW                       │
 └─────────────────────────────────────────────────────────────┘
 
-Start
+Phase 1 Complete ✅
   │
-  ├─→ Task 1.1: Project Setup (0.5 days) ⭐ START HERE
+  ├─→ Task 2.1: SyncEngine (2-3 days) ⭐ START HERE
   │         │
-  │         ├─→ Task 1.2: RedisStateManager (2-3 days) ⭐ CRITICAL PATH
+  │         ├─→ Task 2.2: REST API (2-3 days) ⭐ CRITICAL PATH
   │         │         │
-  │         │         ├─→ Task 1.4: DBWriteQueue (1-2 days)
-  │         │         │         │
-  │         │         │         └─→ Task 1.5: Validation (0.5 days)
-  │         │         │                   │
-  │         │         │                   └─→ Phase 1 Complete ✅
+  │         │         ├─→ Task 2.3: Request Validation (1 day) [parallel]
   │         │         │
-  │         │         └─→ (blocks Phase 2 SyncEngine)
+  │         │         └─→ Task 2.4: WebSocket Server (2 days) ⭐ CRITICAL
+  │         │                   │
+  │         │                   └─→ Phase 2 Complete ✅
   │         │
-  │         └─→ Task 1.3: PostgreSQL Schema (1 day) [parallel]
-  │                   │
-  │                   └─→ Task 1.4: DBWriteQueue (1-2 days)
+  │         └─→ Task 2.4: WebSocket Server (can start in parallel)
   │
-  └─→ Continue to Phase 2
+  └─→ Continue to Phase 3
 ```
 
-**Critical Path:** 1.1 → 1.2 → 1.4 → 1.5 (Total: 4.5-6.5 days)
-**Parallel Path:** 1.1 → 1.3 → 1.4 (Can run alongside 1.2)
+**Critical Path:** 2.1 → 2.2 → 2.4 (Total: 6-8 days)
+**Parallel Path:** 2.3 can run alongside 2.2 (Day 2-3)
 
 ---
 
 ## Task Details
 
-### Task 1.1: Project Setup
+### Task 2.1: SyncEngine Implementation
 
-**File:** [TASK_1.1_PROJECT_SETUP.md](tasks/TASK_1.1_PROJECT_SETUP.md)
+**File:** [TASK_2.1_SYNCENGINE.md](tasks/TASK_2.1_SYNCENGINE.md)
 
-**Objective:** Initialize Node.js project with TypeScript, ESLint, Prettier, and install all dependencies.
-
-**Deliverables:**
-- `package.json` with scripts and dependencies
-- `tsconfig.json` configured
-- `.eslintrc.json` and `.prettierrc` setup
-- Project directory structure created
-- `.env.example` with all config variables
-
-**Estimated Time:** 0.5 days (4 hours)
-
-**Subtasks:** 6
-1. Node.js project initialization (30 min)
-2. TypeScript configuration (30 min)
-3. ESLint + Prettier setup (30 min)
-4. Project structure creation (30 min)
-5. Environment configuration (30 min)
-6. Install dependencies (45 min)
-
-**Blocks:**
-- Task 1.2, 1.3, 1.4 (all need project setup)
-
----
-
-### Task 1.2: RedisStateManager Implementation
-
-**File:** [TASK_1.2_REDIS_STATE_MANAGER.md](tasks/TASK_1.2_REDIS_STATE_MANAGER.md)
-
-**Objective:** Build Redis-first state manager (PRIMARY source of truth).
+**Objective:** Implement core business logic layer with session management and time calculations.
 
 **Deliverables:**
-- `src/types/session.ts` (interfaces and enums)
-- `src/config/redis.ts` (connection factory)
-- `src/state/RedisStateManager.ts` (CRUD + Pub/Sub)
-- `tests/unit/RedisStateManager.test.ts` (>90% coverage)
-- `tests/integration/multi-instance.test.ts`
-- `tests/performance/RedisStateManager.perf.test.ts`
+- `src/engine/SyncEngine.ts` - Main SyncEngine class
+- `src/types/switch-result.ts` - Result interface
+- `tests/unit/SyncEngine.test.ts` - Comprehensive unit tests
+- `tests/fixtures/sampleSessions.ts` - Test data
 
-**Estimated Time:** 2-3 days
+**Estimated Time:** 2-3 days (16-24 hours)
 
 **Day-by-Day Breakdown:**
-- **Day 1:** TypeScript interfaces, Redis connection, CRUD operations
-- **Day 2:** Optimistic locking, Pub/Sub broadcasting
-- **Day 3:** Comprehensive testing, performance validation
+- **Day 1:** Core methods (createSession, startSession, getCurrentState) + switchCycle (hot path)
+- **Day 2:** Other methods (pause/resume/complete/delete), error handling, validation
+- **Day 3:** Comprehensive unit tests (>85% coverage)
 
 **Performance Targets:**
-- getSession(): <3ms avg
-- updateSession(): <5ms avg
-- Redis Pub/Sub: <2ms
-
-**Coverage Target:** >90%
-
-**Blocks:**
-- Task 1.4 (DBWriteQueue needs RedisStateManager structure)
-- Phase 2 (SyncEngine, REST API, WebSocket all depend on this)
-
----
-
-### Task 1.3: PostgreSQL Schema Setup
-
-**File:** [TASK_1.3_POSTGRESQL_SCHEMA.md](tasks/TASK_1.3_POSTGRESQL_SCHEMA.md)
-
-**Objective:** Setup PostgreSQL schema for AUDIT TRAIL only.
-
-**Deliverables:**
-- `migrations/001_initial_schema.sql` (tables and enums)
-- `migrations/002_add_indexes.sql` (performance indexes)
-- `src/config/database.ts` (connection pool)
-- `scripts/run-migrations.ts` (migration runner)
-- `tests/integration/database.test.ts`
-
-**Estimated Time:** 1 day
-
-**Breakdown:**
-- **Morning:** Schema design (enums, sync_sessions, sync_events, indexes)
-- **Afternoon:** Connection setup, migration runner, integration tests
-
-**Can Run in Parallel:** Yes, with Task 1.2
-
-**Blocks:**
-- Task 1.4 (DBWriteQueue needs PostgreSQL schema)
-
----
-
-### Task 1.4: DBWriteQueue Implementation
-
-**File:** [TASK_1.4_DBWRITEQUEUE.md](tasks/TASK_1.4_DBWRITEQUEUE.md)
-
-**Objective:** Implement async, fire-and-forget database writes using BullMQ.
-
-**Deliverables:**
-- `src/state/DBWriteQueue.ts` (BullMQ queue and worker)
-- `tests/unit/DBWriteQueue.test.ts` (>85% coverage)
-- `tests/integration/RedisStateManager-DBWriteQueue.test.ts`
-
-**Estimated Time:** 1-2 days
-
-**Day-by-Day Breakdown:**
-- **Day 1:** BullMQ setup, queue implementation, performDBWrite(), event monitoring
-- **Day 2:** Retry logic testing, failure alerting, integration with RedisStateManager
-
-**Key Features:**
-- 5 retry attempts with exponential backoff (2s, 4s, 8s, 16s, 32s)
-- Alert on persistent failures
-- Queue metrics (waiting, active, completed, failed, delayed)
-- Non-blocking async writes
+- switchCycle() <50ms (target: 3-5ms) ⭐ **CRITICAL**
+- All other methods <10ms
 
 **Coverage Target:** >85%
 
 **Blocks:**
-- Task 1.5 (Validation needs DBWriteQueue complete)
-
-**Blocked By:**
-- Task 1.2 (needs RedisStateManager structure)
-- Task 1.3 (needs PostgreSQL schema)
+- Task 2.2 (REST API needs SyncEngine)
+- Task 2.4 (WebSocket needs SyncEngine)
 
 ---
 
-### Task 1.5: Phase 1 Validation
+### Task 2.2: REST API Implementation
 
-**File:** [TASK_1.5_VALIDATION.md](tasks/TASK_1.5_VALIDATION.md)
+**File:** [TASK_2.2_REST_API.md](tasks/TASK_2.2_REST_API.md)
 
-**Objective:** Validate Phase 1 completion before proceeding to Phase 2.
+**Objective:** Implement Express REST API with 8 endpoints, error handling, rate limiting, and Prometheus metrics.
 
 **Deliverables:**
-- `docs/project-tracking/PHASE_1_VALIDATION.md` (validation report)
-- `scripts/multi-instance-test.ts` (manual test script)
-- Updated phase documentation
+- `src/api/app.ts` - Express application
+- `src/api/routes/sessions.ts` - 8 session endpoints
+- `src/api/routes/time.ts` - Time sync endpoint
+- `src/api/routes/health.ts` - Health check endpoints
+- `src/api/routes/metrics.ts` - Prometheus metrics
+- `src/api/middlewares/errorHandler.ts` - Error handling
+- `src/api/middlewares/rateLimit.ts` - Rate limiting
+- `src/api/middlewares/metrics.ts` - Metrics collection
+- `src/index.ts` - Server entry point
+- `tests/integration/api.test.ts` - Integration tests
 
-**Estimated Time:** 0.5 days (4 hours)
+**Estimated Time:** 2-3 days (16-24 hours)
 
-**Breakdown:**
-1. Code review - stateless verification (2 hours)
-2. Multi-instance simulation test (1.5 hours)
-3. Performance validation (30 min)
-4. Test coverage validation (30 min)
-5. Final checklist & documentation (30 min)
+**Day-by-Day Breakdown:**
+- **Day 1:** Express setup, 8 session endpoints, health/time endpoints
+- **Day 2:** Error handler, rate limiting, Prometheus metrics, graceful shutdown
+- **Day 3:** Comprehensive integration tests
 
-**Validation Criteria:**
-- ✅ Zero instance-local state
-- ✅ Multi-instance test passed
-- ✅ Performance targets met (<5ms operations)
-- ✅ Test coverage >80% (RedisStateManager >90%, DBWriteQueue >85%)
-- ✅ All acceptance criteria met
+**Endpoints:**
+1. POST `/v1/sessions` - Create session
+2. POST `/v1/sessions/:id/start` - Start session
+3. POST `/v1/sessions/:id/switch` - Switch cycle ⭐ **HOT PATH**
+4. GET `/v1/sessions/:id` - Get state
+5. POST `/v1/sessions/:id/pause` - Pause
+6. POST `/v1/sessions/:id/resume` - Resume
+7. POST `/v1/sessions/:id/complete` - Complete
+8. DELETE `/v1/sessions/:id` - Delete
 
 **Blocks:**
-- Phase 2 (cannot start until Phase 1 validated)
+- Task 2.3 (Validation needs REST API structure)
 
 **Blocked By:**
-- All Phase 1 tasks (1.1, 1.2, 1.3, 1.4)
+- Task 2.1 (SyncEngine)
+
+---
+
+### Task 2.3: Request Validation (Zod)
+
+**File:** [TASK_2.3_VALIDATION.md](tasks/TASK_2.3_VALIDATION.md)
+
+**Objective:** Implement comprehensive request validation using Zod schemas.
+
+**Deliverables:**
+- `src/api/schemas/session.ts` - Zod schemas
+- `src/api/schemas/validators.ts` - Custom validation helpers
+- `src/api/middlewares/validate.ts` - Validation middleware
+- `tests/unit/validation.test.ts` - Unit tests
+
+**Estimated Time:** 1 day (8 hours)
+
+**Breakdown:**
+- **Morning:** Define Zod schemas for all endpoints
+- **Afternoon:** Create validation middleware, apply to routes, unit tests
+
+**Can Run in Parallel:** Yes, alongside Task 2.2 (Day 2-3)
+
+**Blocked By:**
+- Task 2.2 (needs REST API structure)
+
+---
+
+### Task 2.4: WebSocket Server Implementation
+
+**File:** [TASK_2.4_WEBSOCKET.md](tasks/TASK_2.4_WEBSOCKET.md)
+
+**Objective:** Implement WebSocket server for real-time updates with cross-instance broadcasting.
+
+**Deliverables:**
+- `src/websocket/WebSocketServer.ts` - WebSocket server
+- `src/types/websocket.ts` - Protocol definitions
+- `tests/integration/websocket.test.ts` - Integration tests
+- `tests/fixtures/websocketClient.ts` - Test helper
+
+**Estimated Time:** 2 days (16 hours)
+
+**Day-by-Day Breakdown:**
+- **Day 1:** WebSocket setup, Pub/Sub integration, connection handling
+- **Day 2:** Heartbeat mechanism, comprehensive integration tests (including multi-instance)
+
+**Performance Targets:**
+- Same-instance delivery: <50ms
+- Cross-instance delivery: <100ms ⭐ **CRITICAL**
+
+**Critical Tests:**
+- Multi-instance broadcasting (THE critical validation)
+
+**Blocked By:**
+- Task 2.1 (SyncEngine for state updates)
+- Task 1.2 (RedisStateManager for Pub/Sub)
 
 ---
 
 ## Daily Progress Tracking
 
-### Week 1 - Day 1
+### Week 2 - Day 1
 **Date:** _____
 **Tasks Worked On:** _____
 **Progress:** _____
 **Blockers:** _____
 **Notes:** _____
 
-### Week 1 - Day 2
+### Week 2 - Day 2
 **Date:** _____
 **Tasks Worked On:** _____
 **Progress:** _____
 **Blockers:** _____
 **Notes:** _____
 
-### Week 1 - Day 3
+### Week 2 - Day 3
 **Date:** _____
 **Tasks Worked On:** _____
 **Progress:** _____
 **Blockers:** _____
 **Notes:** _____
 
-### Week 1 - Day 4
+### Week 2 - Day 4
 **Date:** _____
 **Tasks Worked On:** _____
 **Progress:** _____
 **Blockers:** _____
 **Notes:** _____
 
-### Week 1 - Day 5
+### Week 2 - Day 5
+**Date:** _____
+**Tasks Worked On:** _____
+**Progress:** _____
+**Blockers:** _____
+**Notes:** _____
+
+### Week 2 - Day 6
+**Date:** _____
+**Tasks Worked On:** _____
+**Progress:** _____
+**Blockers:** _____
+**Notes:** _____
+
+### Week 2 - Day 7
+**Date:** _____
+**Tasks Worked On:** _____
+**Progress:** _____
+**Blockers:** _____
+**Notes:** _____
+
+### Week 2 - Day 8 (buffer)
 **Date:** _____
 **Tasks Worked On:** _____
 **Progress:** _____
@@ -261,39 +250,34 @@ Start
 
 ## Completion Checklist
 
-### Must Complete Before Phase 2
+### Must Complete Before Phase 3
 
-- [ ] **Task 1.1: Project Setup**
-  - [ ] All dependencies installed
-  - [ ] TypeScript compiles without errors
-  - [ ] ESLint and Prettier configured
-  - [ ] Project structure created
+- [ ] **Task 2.1: SyncEngine**
+  - [ ] All session methods implemented
+  - [ ] switchCycle() <50ms (target: 3-5ms)
+  - [ ] Time calculations accurate (±5ms)
+  - [ ] Unit tests >85% coverage
+  - [ ] Edge cases handled
 
-- [x] **Task 1.2: RedisStateManager**
-  - [x] All CRUD operations implemented
-  - [x] Optimistic locking working
-  - [x] Redis Pub/Sub cross-instance communication
-  - [x] >90% test coverage (92.25% achieved)
-  - [x] Performance targets met (<5ms operations - 5-10x faster)
+- [ ] **Task 2.2: REST API**
+  - [ ] All 8 endpoints functional
+  - [ ] Error handling comprehensive
+  - [ ] Rate limiting active (per-IP and per-session)
+  - [ ] Prometheus metrics exposed
+  - [ ] Graceful shutdown working
+  - [ ] Integration tests passing
 
-- [x] **Task 1.3: PostgreSQL Schema**
-  - [x] Migrations run successfully
-  - [x] All tables and indexes created
-  - [x] Connection pool working
-  - [x] Integration tests created (14 comprehensive tests)
+- [ ] **Task 2.3: Request Validation**
+  - [ ] All endpoints validated with Zod
+  - [ ] Clear error messages
+  - [ ] TypeScript type inference working
 
-- [ ] **Task 1.4: DBWriteQueue**
-  - [ ] BullMQ queue processing jobs
-  - [ ] Retry logic working (5 attempts)
-  - [ ] Integration with RedisStateManager complete
-  - [ ] >85% test coverage
-
-- [ ] **Task 1.5: Validation**
-  - [ ] Code review passed (zero instance-local state)
-  - [ ] Multi-instance test passed
-  - [ ] Performance validation passed
-  - [ ] Test coverage validated (>80%)
-  - [ ] Documentation complete
+- [ ] **Task 2.4: WebSocket Server**
+  - [ ] Connections stable with heartbeat
+  - [ ] Real-time updates <100ms
+  - [ ] Cross-instance broadcasting validated ⭐ **CRITICAL**
+  - [ ] Reconnection logic working
+  - [ ] Integration tests passing
 
 ---
 
@@ -303,77 +287,74 @@ Start
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| Redis connection issues | High | Low | Retry logic, health checks, connection pooling |
-| Optimistic locking complexity | Medium | Medium | Start simple, add retries only if needed |
-| Pub/Sub message loss | Medium | Low | Redis Pub/Sub is fire-and-forget; document limitation |
-| PostgreSQL async write delays | Low | Low | Acceptable for audit trail; monitor queue depth |
-| Multi-instance testing complexity | Medium | Medium | Create comprehensive test scripts, run locally first |
+| switchCycle() latency >50ms | High | Low | Early performance testing, optimization |
+| Multi-instance WebSocket test complexity | Medium | Medium | Detailed test plan, use test fixtures |
+| Rate limiting false positives | Low | Medium | Careful configuration, monitoring |
+| Zod schema type mismatches | Medium | Low | Comprehensive validation tests |
+| Graceful shutdown edge cases | Medium | Low | Manual testing, integration tests |
 
 ### Mitigation Strategies
 
-- **Redis connection issues:** Implemented in `src/config/redis.ts` with retry strategy
-- **Optimistic locking:** Comprehensive testing in Task 1.2, Day 2
-- **Pub/Sub reliability:** Documented in validation report
-- **PostgreSQL delays:** Queue metrics tracking in Task 1.4
-- **Multi-instance testing:** Dedicated test script in Task 1.5
+- **switchCycle() performance:** Test early (Day 1), profile if needed
+- **Multi-instance testing:** Detailed test scenario in TASK_2.4
+- **Rate limiting:** Start conservative, adjust based on testing
+- **Validation:** Unit tests for all schemas
+- **Graceful shutdown:** Manual testing during development
 
 ---
 
 ## Performance Benchmarks
 
-**Targets for Phase 1:**
+**Targets for Phase 2:**
 
 | Metric | Target | Achieved | Status |
 |--------|--------|----------|--------|
-| getSession() avg | <3ms | 0.22 ms | ✅ |
-| getSession() p95 | <5ms | 0.37 ms | ✅ |
-| updateSession() avg | <5ms | 0.40 ms | ✅ |
-| updateSession() p95 | <10ms | 0.55 ms | ✅ |
-| Redis Pub/Sub | <2ms | 0.17 ms | ✅ |
-| DB Queue Processing | N/A | ___ jobs/sec | ⚪ |
+| switchCycle() total | <50ms | ___ ms | ⚪ |
+| switchCycle() engine only | <5ms | ___ ms | ⚪ |
+| WebSocket delivery (same) | <50ms | ___ ms | ⚪ |
+| WebSocket delivery (cross) | <100ms | ___ ms | ⚪ |
+| API response avg | <100ms | ___ ms | ⚪ |
 
 ---
 
 ## Test Coverage Metrics
 
-**Targets for Phase 1:**
+**Targets for Phase 2:**
 
 | Component | Target | Achieved | Status |
 |-----------|--------|----------|--------|
-| RedisStateManager | >90% | 92.25% | ✅ |
-| DBWriteQueue | >85% | ___% | ⚪ |
-| Database config | >70% | ___% | ⚪ |
-| Redis config | >70% | 67.85% | 🟡 |
-| Overall Phase 1 | >80% | 88.83% | ✅ |
+| SyncEngine | >85% | ___% | ⚪ |
+| REST API | >80% | ___% | ⚪ |
+| WebSocket | >75% | ___% | ⚪ |
+| Request Validation | >90% | ___% | ⚪ |
+| Overall Phase 2 | >80% | ___% | ⚪ |
 
 ---
 
 ## Notes & Decisions
 
 ### Technical Decisions Made
-- Using ioredis for Redis client (better TypeScript support)
-- Separate Redis connection for Pub/Sub (required by Redis)
-- BullMQ for job queue (reliable, Redis-backed)
-- Raw SQL with pg library (simpler than ORM for audit writes)
-- No session recovery from PostgreSQL in Phase 1 (deferred)
+- Using ws library for WebSocket (lightweight, good TypeScript support)
+- Zod for validation (type inference, better DX than Joi)
+- Prom-client for metrics (standard Prometheus client)
+- Express rate limiting with Redis store (distributed rate limiting)
 
 ### Deferred to Later Phases
-- Authentication/authorization (Phase 2)
-- Rate limiting (Phase 2)
-- Prometheus metrics for queue (Phase 3)
-- Sentry/PagerDuty alerts (Phase 3)
-- Session recovery from PostgreSQL (Phase 3 or later)
+- Authentication/authorization (Phase 3)
+- Advanced rate limiting strategies (Phase 3)
+- WebSocket compression (Phase 3)
+- API versioning beyond v1 (future)
 
 ---
 
 ## Links
 
-- [Phase 1 Overview](phases/PHASE_1.md)
+- [Phase 2 Plan](phases/PHASE_2.md)
 - [Project Phases](PROJECT_PHASES.md)
+- [Phase 1 Archive](archive/phase-1/)
 - [Dependencies Graph](DEPENDENCIES.md)
-- [Architecture Documentation](../ARCHITECTURE.md)
 
 ---
 
-**Last Updated:** 2025-10-21
+**Last Updated:** _____
 **Updated By:** _____
