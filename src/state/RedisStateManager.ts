@@ -9,18 +9,21 @@ import {
   ConcurrencyError,
   StateDeserializationError,
 } from '@/errors/StateErrors'
+import { DBWriteQueue } from './DBWriteQueue'
 
 const logger = createComponentLogger('RedisStateManager')
 
 export class RedisStateManager {
   private redis: Redis
   private pubSubClient: Redis
+  private dbQueue?: DBWriteQueue
   private readonly SESSION_PREFIX = 'session:'
   private readonly SESSION_TTL = 3600 // 1 hour in seconds
 
-  constructor(redisClient: Redis, pubSubClient: Redis) {
+  constructor(redisClient: Redis, pubSubClient: Redis, dbQueue?: DBWriteQueue) {
     this.redis = redisClient
     this.pubSubClient = pubSubClient
+    this.dbQueue = dbQueue
   }
 
   // CRUD Operations
@@ -53,6 +56,11 @@ export class RedisStateManager {
     const key = this.getSessionKey(state.session_id)
     const serialized = this.serializeState(newState)
     await this.redis.setex(key, this.SESSION_TTL, serialized)
+
+    // Async DB write (fire-and-forget)
+    this.asyncDBWrite(state.session_id, newState, 'session_created').catch(err => {
+      logger.error({ err, sessionId: state.session_id }, 'Failed to queue DB write')
+    })
   }
 
   async updateSession(
@@ -89,6 +97,11 @@ export class RedisStateManager {
 
     // Broadcast update to all instances
     await this.broadcastUpdate(sessionId, newState)
+
+    // Async DB write (fire-and-forget)
+    this.asyncDBWrite(sessionId, newState, 'session_updated').catch(err => {
+      logger.error({ err, sessionId }, 'Failed to queue DB write')
+    })
   }
 
   async deleteSession(sessionId: string): Promise<void> {
@@ -210,5 +223,17 @@ export class RedisStateManager {
       }
       return value
     })
+  }
+
+  private async asyncDBWrite(
+    sessionId: string,
+    state: SyncState,
+    eventType: string
+  ): Promise<void> {
+    if (!this.dbQueue) {
+      logger.debug({ sessionId }, 'DBWriteQueue not configured, skipping audit write')
+      return
+    }
+    await this.dbQueue.queueWrite(sessionId, state, eventType)
   }
 }
