@@ -30,16 +30,19 @@ if (process.env.DATABASE_SSL === 'true') {
 
 export const pool = new Pool(poolConfig)
 
-pool.on('error', (err) => {
+pool.on('error', err => {
   logger.error({ err }, 'Unexpected error on idle PostgreSQL client')
 })
 
 pool.on('connect', () => {
-  logger.info({
-    min: poolConfig.min,
-    max: poolConfig.max,
-    ssl: !!poolConfig.ssl
-  }, 'PostgreSQL client connected')
+  logger.info(
+    {
+      min: poolConfig.min,
+      max: poolConfig.max,
+      ssl: !!poolConfig.ssl,
+    },
+    'PostgreSQL client connected'
+  )
 })
 
 export const healthCheck = async (): Promise<boolean> => {

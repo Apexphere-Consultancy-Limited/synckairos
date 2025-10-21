@@ -101,7 +101,7 @@ export class RedisStateManager {
 
   // Pub/Sub - Session Update Broadcasting
   subscribeToUpdates(callback: (sessionId: string, state: SyncState | null) => void): void {
-    this.pubSubClient.subscribe('session-updates', (err) => {
+    this.pubSubClient.subscribe('session-updates', err => {
       if (err) {
         logger.error({ err, channel: 'session-updates' }, 'Failed to subscribe to channel')
         return
@@ -160,7 +160,7 @@ export class RedisStateManager {
   }
 
   subscribeToWebSocket(callback: (sessionId: string, message: unknown) => void): void {
-    this.pubSubClient.psubscribe('ws:*', (err) => {
+    this.pubSubClient.psubscribe('ws:*', err => {
       if (err) {
         logger.error({ err, pattern: 'ws:*' }, 'Failed to subscribe to WebSocket pattern')
         return
