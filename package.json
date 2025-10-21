@@ -13,6 +13,7 @@
     "test:coverage": "vitest --coverage",
     "test:unit": "vitest tests/unit",
     "test:integration": "vitest tests/integration",
+    "test:multi-instance": "tsx scripts/multi-instance-test.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",

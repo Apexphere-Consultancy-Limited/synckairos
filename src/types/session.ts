@@ -20,11 +20,14 @@ export enum SyncStatus {
 
 export interface SyncParticipant {
   participant_id: string
-  total_time_ms: number
-  time_remaining_ms: number
-  has_gone: boolean
-  is_active: boolean
-  group_id?: string
+  participant_index: number // Position in rotation order
+  total_time_ms: number // Total time remaining
+  time_used_ms: number // Total time consumed
+  time_remaining_ms: number // Calculated remaining time (for display)
+  cycle_count: number // Number of cycles/turns taken
+  is_active: boolean // Currently active participant
+  has_expired: boolean // Time ran out
+  group_id?: string // Optional group assignment
 }
 
 export interface SyncState {
