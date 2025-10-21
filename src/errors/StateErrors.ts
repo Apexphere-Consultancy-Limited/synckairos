@@ -60,7 +60,7 @@ export class StateDeserializationError extends Error {
 
     // Include original error as cause if available
     if (cause && 'cause' in Error.prototype) {
-      ;(this as any).cause = cause
+      Object.defineProperty(this, 'cause', { value: cause })
     }
 
     if (Error.captureStackTrace) {

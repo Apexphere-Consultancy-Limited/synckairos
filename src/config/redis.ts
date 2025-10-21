@@ -18,17 +18,20 @@ export const createRedisClient = (): Redis => {
       }
       return Math.min(times * 100, 3000) // Exponential backoff: 100ms, 200ms, 300ms
     },
-    reconnectOnError: (err) => {
+    reconnectOnError: err => {
       const targetErrors = ['READONLY', 'ECONNRESET']
       return targetErrors.some(targetError => err.message.includes(targetError))
     },
   })
 
   client.on('connect', () => {
-    logger.info({ url: process.env.REDIS_URL || 'redis://localhost:6379' }, 'Redis client connected')
+    logger.info(
+      { url: process.env.REDIS_URL || 'redis://localhost:6379' },
+      'Redis client connected'
+    )
   })
 
-  client.on('error', (err) => {
+  client.on('error', err => {
     logger.error({ err }, 'Redis client error')
   })
 

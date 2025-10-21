@@ -9,7 +9,10 @@
       "Bash(pnpm test:*)",
       "Skill(architect)",
       "Skill(tester)",
-      "Bash(pnpm run test:coverage:*)"
+      "Bash(pnpm run test:coverage:*)",
+      "Bash(pnpm test:unit:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm lint:fix:*)"
     ],
     "deny": [],
     "ask": []
