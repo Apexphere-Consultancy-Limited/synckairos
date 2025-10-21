@@ -505,9 +505,21 @@ pnpm run test:integration
 - [x] Connection config uses environment variables
 
 ### Testing Requirements
-- [x] Integration tests created (14 comprehensive tests)
+- [x] Integration tests created (30 comprehensive tests)
+- [x] Unit tests for database configuration (18 tests)
+- [x] Unit tests for migration runner (13 tests)
+- [x] Enum validation tests
+- [x] Constraint validation tests (NOT NULL, DEFAULT values)
+- [x] Edge case tests (max length, large JSONB, boundaries)
 - [x] Can query tables and indexes
 - [x] Migration script implemented
+
+**Total Test Coverage: 61 tests**
+
+**Test Breakdown:**
+- Integration tests: 30 (schema, CRUD, constraints, edge cases)
+- DatabaseConfig unit tests: 18 (pool, health checks, environment config)
+- MigrationRunner unit tests: 13 (execution, idempotency, error handling)
 
 **Note:** Integration tests require PostgreSQL to be running. Run migrations first: `pnpm run migrate`
 
@@ -519,7 +531,9 @@ pnpm run test:integration
 - [x] `migrations/002_add_indexes.sql`
 - [x] `src/config/database.ts`
 - [x] `scripts/run-migrations.ts`
-- [x] `tests/integration/database.test.ts`
+- [x] `tests/integration/database.test.ts` (30 tests)
+- [x] `tests/unit/DatabaseConfig.test.ts` (18 tests)
+- [x] `tests/unit/MigrationRunner.test.ts` (13 tests)
 
 ---
 
