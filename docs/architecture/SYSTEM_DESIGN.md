@@ -1,630 +1,237 @@
-# Phase 1 Architecture - Core State Management
+# Phase 1 System Design
 
-**Version:** 2.0
 **Status:** 🟢 Complete
-**Last Updated:** 2025-10-21
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Component Architecture](#component-architecture)
-- [Data Flow](#data-flow)
-- [State Lifecycle](#state-lifecycle)
-- [Cross-Instance Communication](#cross-instance-communication)
-- [Performance Characteristics](#performance-characteristics)
-
----
 
 ## Overview
 
-Phase 1 implements the **core state management layer** of SyncKairos with a distributed-first architecture. The system is designed to operate across multiple instances with Redis as the primary state store and PostgreSQL for audit logging.
+Distributed-first state management with Redis as PRIMARY store, PostgreSQL as AUDIT trail.
 
-### Design Goals
+**Design Goals**:
+- Zero instance-local state (any instance serves any request)
+- Sub-5ms operations (achieved 0.25-0.61ms)
+- Horizontal scalability
+- Async PostgreSQL audit via BullMQ
 
-1. **Zero Instance-Local State**: Any instance can serve any request
-2. **Sub-5ms Operations**: Redis-only hot path for critical operations
-3. **Horizontal Scalability**: Add instances without code changes
-4. **Data Durability**: Async audit trail in PostgreSQL
-5. **Multi-Instance Consistency**: Redis Pub/Sub for state synchronization
-
-### Key Components
-
-- **RedisStateManager**: Primary state operations (CRUD)
-- **DBWriteQueue**: Async PostgreSQL writes via BullMQ
-- **Redis**: Primary state store + Pub/Sub messaging
-- **PostgreSQL**: Audit trail and historical data
-
----
-
-## System Architecture
-
-### High-Level Architecture
+## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    Client Applications                            │
-│   (Games, Live Events, Meetings, Exams, Collaborative Tools)    │
-└────────────────────────┬─────────────────────────────────────────┘
-                         │
-                         │ HTTP REST + WebSocket
-                         │
-                         ▼
-┌──────────────────────────────────────────────────────────────────┐
-│              Load Balancer (Round-Robin)                          │
-│                  NO Sticky Sessions                               │
-└────┬─────────────┬─────────────┬────────────────────────────┬────┘
-     │             │             │                            │
-     ▼             ▼             ▼                            ▼
-┌─────────┐  ┌─────────┐  ┌─────────┐                 ┌─────────┐
-│Instance │  │Instance │  │Instance │       ...       │Instance │
-│    1    │  │    2    │  │    3    │                 │    N    │
-│         │  │         │  │         │                 │         │
-│STATELESS│  │STATELESS│  │STATELESS│                 │STATELESS│
-└────┬────┘  └────┬────┘  └────┬────┘                 └────┬────┘
-     │            │             │                           │
-     └────────────┼─────────────┼───────────────────────────┘
-                  │             │
-     ┌────────────┘             └──────────────┐
-     │                                         │
-     ▼                                         ▼
-┌──────────────────┐                   ┌──────────────────┐
-│   Redis Cluster   │                   │   PostgreSQL    │
-│                  │                   │   Database      │
-│  PRIMARY STORE   │                   │  AUDIT TRAIL    │
-│                  │                   │                 │
-│  • Session State │────async write───▶│  • sync_sessions│
-│  • Pub/Sub       │    (BullMQ)       │  • sync_events  │
-│  • TTL 1hr       │                   │  • sync_parts   │
-└──────────────────┘                   └──────────────────┘
-  1-5ms latency                           Async (non-blocking)
+┌─────────────────────────────────────────────┐
+│        Client Applications                   │
+└────────────────┬────────────────────────────┘
+                 │ HTTP/WebSocket
+                 ▼
+┌─────────────────────────────────────────────┐
+│   Load Balancer (NO sticky sessions)        │
+└─┬──────┬──────┬──────────────────────────┬──┘
+  │      │      │                          │
+  ▼      ▼      ▼                          ▼
+┌────┐ ┌────┐ ┌────┐                    ┌────┐
+│ I1 │ │ I2 │ │ I3 │       ...          │ IN │
+└─┬──┘ └─┬──┘ └─┬──┘                    └─┬──┘
+  │      │      │                          │
+  └──────┼──────┼──────────────────────────┘
+         │      │
+    ┌────┴──┐   └─────────┐
+    ▼       ▼             ▼
+┌─────────────┐    ┌──────────────┐
+│   Redis     │    │ PostgreSQL   │
+│  PRIMARY    │───▶│   AUDIT      │
+│  (<5ms)     │    │   (async)    │
+└─────────────┘    └──────────────┘
 ```
 
-### Instance Architecture
-
-Each SyncKairos instance is **completely stateless**:
+**Instance Architecture**: STATELESS
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                  SyncKairos Instance                      │
-│                                                          │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │          Express HTTP Server                        │ │
-│  │  • REST API endpoints (Phase 4)                     │ │
-│  │  • Health checks (/health, /ready)                  │ │
-│  │  • Prometheus metrics (/metrics)                    │ │
-│  └─────────────────┬──────────────────────────────────┘ │
-│                    │                                     │
-│  ┌────────────────┴──────────────────────────────────┐ │
-│  │          WebSocket Server (Phase 3)                │ │
-│  │  • Real-time state updates                         │ │
-│  │  • Subscribe to Redis Pub/Sub                      │ │
-│  │  • Broadcast to connected clients                  │ │
-│  └─────────────────┬──────────────────────────────────┘ │
-│                    │                                     │
-│  ┌────────────────┴──────────────────────────────────┐ │
-│  │          SyncEngine (Phase 2)                      │ │
-│  │  • Business logic (switchCycle, etc.)              │ │
-│  │  • Uses RedisStateManager                          │ │
-│  └─────────────────┬──────────────────────────────────┘ │
-│                    │                                     │
-│  ┌────────────────┴──────────────────────────────────┐ │
-│  │      RedisStateManager (Phase 1) ✅                │ │
-│  │                                                    │ │
-│  │  • getSession(id)         1-3ms                    │ │
-│  │  • createSession(state)   2-5ms                    │ │
-│  │  • updateSession(...)     3-5ms                    │ │
-│  │  • deleteSession(id)      1-2ms                    │ │
-│  │  • subscribeToUpdates()   Pub/Sub                  │ │
-│  │  • broadcastToSession()   Pub/Sub                  │ │
-│  └─────────────────┬──────────────────────────────────┘ │
-│                    │                                     │
-│  ┌────────────────┴──────────────────────────────────┐ │
-│  │       DBWriteQueue (Phase 1) ✅                    │ │
-│  │                                                    │ │
-│  │  • queueWrite(session, event)                      │ │
-│  │  • BullMQ worker (10 concurrent)                   │ │
-│  │  • Retry logic (5 attempts)                        │ │
-│  │  • Exponential backoff                             │ │
-│  └────────────────────────────────────────────────────┘ │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
-         │                            │
-         │                            │
-         ▼                            ▼
-   ┌──────────┐              ┌──────────────┐
-   │  Redis   │              │  PostgreSQL  │
-   │ Cluster  │              │   Database   │
-   └──────────┘              └──────────────┘
+┌──────────────────────────────────────┐
+│        SyncKairos Instance            │
+│                                      │
+│  ┌────────────────────────────────┐ │
+│  │  Express HTTP + WebSocket      │ │
+│  └────────────┬───────────────────┘ │
+│               ▼                      │
+│  ┌────────────────────────────────┐ │
+│  │  RedisStateManager             │ │
+│  │  • getSession (0.25ms)         │ │
+│  │  • updateSession (0.46ms)      │ │
+│  │  • Pub/Sub (0.19ms)            │ │
+│  └────────────┬───────────────────┘ │
+│               ▼                      │
+│  ┌────────────────────────────────┐ │
+│  │  DBWriteQueue (BullMQ)         │ │
+│  │  • Async PostgreSQL writes     │ │
+│  │  • Retry: 5x, exponential      │ │
+│  └────────────────────────────────┘ │
+└──────────────────────────────────────┘
 ```
 
----
-
-## Component Architecture
+## Components
 
 ### RedisStateManager
 
-**Purpose**: Manage all session state operations using Redis as the single source of truth.
+Primary state store operations.
 
-**Responsibilities**:
-- CRUD operations on session state
-- Optimistic locking (version field)
-- TTL management (1 hour)
-- Pub/Sub broadcasting for cross-instance updates
-- State serialization/deserialization (Date handling)
-
-**Key Methods**:
-
+**Core Methods**:
 ```typescript
-class RedisStateManager {
-  // Core CRUD
-  async getSession(sessionId: string): Promise<SyncState | null>
-  async createSession(state: SyncState): Promise<void>
-  async updateSession(sessionId: string, state: SyncState, expectedVersion?: number): Promise<void>
-  async deleteSession(sessionId: string): Promise<void>
-
-  // Pub/Sub for cross-instance communication
-  subscribeToUpdates(callback: (sessionId: string, state: SyncState | null) => void): void
-  subscribeToWebSocket(callback: (sessionId: string, message: unknown) => void): void
-  async broadcastToSession(sessionId: string, message: unknown): Promise<void>
-
-  // Lifecycle
-  async close(): Promise<void>
-}
+getSession(sessionId)          // 0.25ms avg
+createSession(state)           // 0.22ms avg
+updateSession(id, state, ver?) // 0.46ms avg
+deleteSession(sessionId)       // 1-2ms
 ```
 
-**State Storage**:
-- **Key Pattern**: `session:{sessionId}`
-- **Value**: JSON-serialized `SyncState`
-- **TTL**: 3600 seconds (1 hour)
-- **Channels**: `session-updates`, `ws:{sessionId}`
-
-**Optimistic Locking**:
+**Pub/Sub Methods**:
 ```typescript
-// Every update increments version
-const newState = {
-  ...state,
-  version: state.version + 1,
-  updated_at: new Date()
-}
-
-// Detect concurrent modifications
-if (currentState.version !== expectedVersion) {
-  throw new ConcurrencyError(sessionId, expectedVersion, currentState.version)
-}
+subscribeToUpdates(callback)   // Listen to all updates
+broadcastToSession(id, msg)    // Cross-instance messaging
 ```
 
----
+**Storage**:
+- Key: `session:{sessionId}`
+- TTL: 3600s (1 hour)
+- Optimistic locking: `version` field
 
 ### DBWriteQueue
 
-**Purpose**: Async audit trail writes to PostgreSQL using BullMQ.
+Async PostgreSQL audit writes via BullMQ.
 
-**Responsibilities**:
-- Queue writes to PostgreSQL
-- Process jobs in background (10 concurrent workers)
-- Retry failed writes (5 attempts, exponential backoff)
-- Transaction management (BEGIN/COMMIT/ROLLBACK)
-- Error handling and alerting
-
-**Architecture**:
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                  DBWriteQueue                             │
-│                                                          │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │          BullMQ Queue                               │ │
-│  │  • Queue name: 'db-writes'                          │ │
-│  │  • Storage: Redis                                   │ │
-│  │  • Retry: 5 attempts                                │ │
-│  │  • Backoff: Exponential (2s, 4s, 8s, 16s, 32s)     │ │
-│  │  • Cleanup: Keep last 100 successful (1hr)          │ │
-│  └─────────────────┬──────────────────────────────────┘ │
-│                    │                                     │
-│  ┌────────────────┴──────────────────────────────────┐ │
-│  │          BullMQ Worker                             │ │
-│  │  • Concurrency: 10                                  │ │
-│  │  • Process: performDBWrite()                        │ │
-│  │  • Events: completed, failed, active                │ │
-│  └─────────────────┬──────────────────────────────────┘ │
-│                    │                                     │
-│  ┌────────────────┴──────────────────────────────────┐ │
-│  │       PostgreSQL Transaction                       │ │
-│  │                                                    │ │
-│  │  BEGIN                                             │ │
-│  │    1. Upsert sync_sessions                         │ │
-│  │    2. Insert sync_events                           │ │
-│  │  COMMIT                                            │ │
-│  │                                                    │ │
-│  │  (ROLLBACK on error)                               │ │
-│  └────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────┘
-```
+**Configuration**:
+- Concurrency: 10 workers
+- Retry: 5 attempts (2s, 4s, 8s, 16s, 32s)
+- Cleanup: Keep last 100 jobs for 1 hour
 
 **Job Data**:
 ```typescript
-interface DBWriteJobData {
+{
   sessionId: string
-  state: SyncState        // Full state snapshot
-  eventType: string       // 'session_created', 'session_updated', etc.
-  timestamp: number       // When the event occurred
+  state: SyncState       // Full snapshot
+  eventType: string      // 'session_created', 'session_updated'
+  timestamp: number
 }
 ```
 
-**Error Handling**:
-- **Connection errors** (ECONNREFUSED): Retry
-- **Constraint violations**: Skip (don't retry)
-- **Unknown errors**: Retry
-- **Persistent failures** (5 attempts): Alert/log
+**Writes to**:
+- `sync_sessions` (upsert)
+- `sync_events` (insert with snapshot)
 
----
+## Data Flows
 
-## Data Flow
-
-### Session Creation Flow
+### Create Session
 
 ```
-┌─────────┐
-│ Client  │
-└────┬────┘
-     │ POST /sessions
-     ▼
-┌─────────────┐
-│ Instance 1  │
-│             │
-│ 1. Validate │
-│ 2. Create   │◀────────────────────────────────┐
-└────┬────────┘                                 │
-     │                                          │
-     │ createSession(state)                     │
-     ▼                                          │
-┌──────────────────┐                            │
-│  Redis           │                            │
-│                  │                            │
-│  SET session:123 │                            │
-│  TTL 3600        │                            │
-│                  │                            │
-│  PUBLISH         │────────────────────────────┤
-│  session-updates │                            │
-└──────┬───────────┘                            │
-       │                                        │
-       │ async (fire-and-forget)                │
-       ▼                                        │
-┌──────────────────┐                            │
-│  BullMQ Queue    │                            │
-│                  │                            │
-│  Add job:        │                            │
-│  {sessionId,     │                            │
-│   state,         │                            │
-│   eventType}     │                            │
-└──────┬───────────┘                            │
-       │                                        │
-       │ Worker picks up                        │
-       ▼                                        │
-┌──────────────────┐                            │
-│  PostgreSQL      │                            │
-│                  │                            │
-│  BEGIN           │                            │
-│  INSERT sessions │                            │
-│  INSERT events   │                            │
-│  COMMIT          │                            │
-└──────────────────┘                            │
-                                                │
-┌─────────────┐                                 │
-│ Instance 2  │◀────────────────────────────────┘
-│             │
-│ Receives    │
-│ Pub/Sub     │
-│ Update      │
-└─────────────┘
+Client → Instance → Redis SET + PUBLISH → BullMQ → PostgreSQL
+                         ↓
+                    Other instances receive Pub/Sub
 ```
 
-### Session Update Flow (Hot Path)
+### Update Session (Hot Path)
 
 ```
-┌─────────┐
-│ Client  │
-└────┬────┘
-     │ PATCH /sessions/123
-     ▼
-┌─────────────┐
-│ Instance 2  │
-│             │
-│ 1. Get      │────────▶ GET session:123
-│ 2. Validate │◀────────
-│ 3. Update   │────────▶ SET session:123 (version++)
-└────┬────────┘         PUBLISH session-updates
-     │
-     │ Response (5ms total)
-     ▼
-┌─────────┐
-│ Client  │
-└─────────┘
+Client → Instance → GET → Validate → SET (version++) → PUBLISH
+                                           ↓
+                                      Response (3-5ms)
 
-Concurrently:
-┌──────────────────┐
-│  BullMQ Queue    │ ◀─── Async write
-└──────┬───────────┘
-       │
-       ▼
-┌──────────────────┐
-│  PostgreSQL      │ ◀─── Non-blocking audit
-└──────────────────┘
+Async: BullMQ → PostgreSQL (non-blocking)
 ```
 
-**Performance**:
-- Client receives response in **3-5ms**
-- PostgreSQL write happens **asynchronously** (doesn't block)
-- All other instances receive Pub/Sub update in **<2ms**
+### Cross-Instance Communication
 
----
+```
+Instance 1: updateSession(id, state)
+    ↓
+Redis PUBLISH session-updates
+    ↓
+Instances 2-N: Pub/Sub callback triggered (<2ms)
+```
 
 ## State Lifecycle
 
-### State Transitions
-
 ```
-┌─────────┐
-│ PENDING │  Initial state when session created
-└────┬────┘
-     │ startSession()
-     ▼
-┌─────────┐
-│ RUNNING │  Active session, cycles in progress
-└────┬────┘
-     │
-     ├─────▶ pauseSession() ────▶ ┌────────┐
-     │                             │ PAUSED │
-     │                             └───┬────┘
-     │                                 │ resumeSession()
-     │◀────────────────────────────────┘
-     │
-     ├─────▶ timeout ───────────▶ ┌─────────┐
-     │                             │ EXPIRED │
-     │                             └─────────┘
-     │
-     ├─────▶ completeSession() ─▶ ┌───────────┐
-     │                             │ COMPLETED │
-     │                             └───────────┘
-     │
-     └─────▶ cancelSession() ───▶ ┌───────────┐
-                                   │ CANCELLED │
-                                   └───────────┘
+PENDING → startSession() → RUNNING
+                             ↓
+    ┌────────────────────────┼────────────────────┐
+    ↓                        ↓                    ↓
+ PAUSED ← resumeSession   COMPLETED          CANCELLED
+    ↓
+ RUNNING (resume)
+
+EXPIRED ← TTL timeout (1 hour)
 ```
 
-### TTL Management
+## TTL Management
 
-All sessions in Redis have a **1-hour TTL**:
+- All sessions: 1-hour TTL
+- Every update: Refreshes TTL
+- Expired sessions: Auto-removed from Redis
+- Recovery: Can restore from PostgreSQL (Phase 2)
 
-```typescript
-// Every write refreshes TTL
-await redis.setex(`session:${sessionId}`, 3600, serialized)
-```
+## Performance
 
-**TTL Behavior**:
-- Active sessions: TTL refreshed on every update
-- Inactive sessions: Expire after 1 hour of no activity
-- Expired sessions: Automatically removed from Redis
-- Recovery: Can be restored from PostgreSQL if needed
+### Measured vs Targets
 
-**Recovery Flow** (Phase 2):
-```typescript
-async getSession(sessionId: string): Promise<SyncState | null> {
-  // Try Redis first (hot path)
-  const data = await redis.get(`session:${sessionId}`)
+| Operation | Target | Achieved | vs Target |
+|-----------|--------|----------|-----------|
+| GET avg | <3ms | 0.25ms | 12x |
+| GET p95 | <5ms | 0.33ms | 15x |
+| UPDATE avg | <5ms | 0.46ms | 10x |
+| UPDATE p95 | <10ms | 0.61ms | 16x |
+| Pub/Sub | <2ms | 0.19ms | 10x |
 
-  if (data) {
-    return JSON.parse(data)
-  }
+### Scalability
 
-  // Fallback to PostgreSQL (cold path)
-  const recovered = await recoverFromPostgreSQL(sessionId)
+- **Horizontal**: O(1) - add instances without code changes
+- **Throughput**: ~10k ops/sec per instance
+- **Memory**: ~50MB per instance (stateless)
+- **Redis**: ~1-2KB per session
 
-  if (recovered) {
-    // Restore to Redis
-    await redis.setex(`session:${sessionId}`, 3600, JSON.stringify(recovered))
-  }
+## Design Decisions
 
-  return recovered
-}
-```
+### Redis as PRIMARY
 
----
-
-## Cross-Instance Communication
-
-### Redis Pub/Sub Architecture
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│ Instance 1  │     │ Instance 2  │     │ Instance 3  │
-│             │     │             │     │             │
-│ Subscribe   │     │ Subscribe   │     │ Subscribe   │
-│ session-    │     │ session-    │     │ session-    │
-│ updates     │     │ updates     │     │ updates     │
-└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
-       │                   │                   │
-       └───────────────────┼───────────────────┘
-                           │
-                           │ SUBSCRIBE
-                           ▼
-                   ┌───────────────┐
-                   │  Redis Pub/Sub │
-                   │                │
-                   │  Channel:      │
-                   │  session-      │
-                   │  updates       │
-                   └───────┬────────┘
-                           │
-           ┌───────────────┼───────────────┐
-           │ PUBLISH       │               │
-           │ (from any     │               │
-           │  instance)    │               │
-           └───────────────┼───────────────┘
-                           │
-       ┌───────────────────┼───────────────┐
-       │                   │               │
-       ▼                   ▼               ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│ Instance 1  │     │ Instance 2  │     │ Instance 3  │
-│             │     │             │     │             │
-│ Callback    │     │ Callback    │     │ Callback    │
-│ executed    │     │ executed    │     │ executed    │
-└─────────────┘     └─────────────┘     └─────────────┘
-```
-
-### Message Formats
-
-**Session Update Message**:
-```json
-{
-  "sessionId": "session-123",
-  "state": "{...serialized SyncState...}",
-  "timestamp": 1697872800000
-}
-```
-
-**Session Deletion Message**:
-```json
-{
-  "sessionId": "session-123",
-  "deleted": true,
-  "timestamp": 1697872800000
-}
-```
-
-**WebSocket Broadcast Message**:
-```json
-{
-  "sessionId": "session-123",
-  "message": { /* custom payload */ },
-  "timestamp": 1697872800000
-}
-```
-
-### Pub/Sub Implementation
-
-```typescript
-// Instance subscribes to updates
-stateManager.subscribeToUpdates((sessionId, state) => {
-  if (state === null) {
-    // Session was deleted
-    console.log(`Session ${sessionId} deleted`)
-  } else {
-    // Session was updated
-    console.log(`Session ${sessionId} updated to version ${state.version}`)
-  }
-})
-
-// Instance publishes update (automatic in updateSession)
-await stateManager.updateSession(sessionId, newState)
-// → Internally publishes to 'session-updates' channel
-// → All other instances receive the update
-```
-
-**Latency**: Pub/Sub messages delivered in **<2ms** (measured in tests)
-
----
-
-## Performance Characteristics
-
-### Measured Performance (Phase 1 Validation)
-
-| Operation | Target | Achieved | Performance |
-|-----------|--------|----------|-------------|
-| `getSession()` avg | <3ms | 0.25ms | **12x better** |
-| `getSession()` p95 | <5ms | 0.33ms | **15x better** |
-| `updateSession()` avg | <5ms | 0.46ms | **10x better** |
-| `updateSession()` p95 | <10ms | 0.61ms | **16x better** |
-| Redis Pub/Sub | <2ms | 0.19ms | **10x better** |
-| `createSession()` avg | <5ms | 0.22ms | **23x better** |
-| `createSession()` p95 | <5ms | 0.33ms | **15x better** |
-
-### Scalability Characteristics
-
-**Horizontal Scaling**:
-- Add instances: O(1) complexity
-- No coordination required
-- Load balancer distributes requests
-- Redis handles all instances equally
-
-**Connection Pooling**:
-- Each instance: 1 Redis client + 1 Pub/Sub client
-- PostgreSQL: Connection pool (min 2, max 20)
-- BullMQ: Separate Redis connection per worker
-
-**Throughput**:
-- Single instance: ~10,000 ops/sec
-- 10 instances: ~100,000 ops/sec
-- Limited by Redis cluster capacity, not application
-
-**Memory**:
-- Instance footprint: ~50MB base + connections
-- Redis: ~1-2KB per session
-- No memory growth over time (stateless)
-
----
-
-## Design Trade-offs
-
-### Why Redis as PRIMARY?
-
-**Advantages** ✅:
+**Why**:
 - Sub-5ms latency (vs 10-30ms PostgreSQL)
-- Horizontal scaling built-in
-- Pub/Sub for real-time updates
-- TTL for automatic cleanup
-- Simple data model
+- Built-in Pub/Sub
+- Automatic TTL cleanup
+- Horizontal scaling
 
-**Disadvantages** ⚠️:
-- In-memory only (requires backup)
-- Data loss on Redis failure (mitigated by PostgreSQL audit)
-- Higher cost per GB than PostgreSQL
+**Trade-off**: In-memory only (mitigated by PostgreSQL audit)
 
-**Mitigation**: PostgreSQL audit trail allows recovery
+### Async PostgreSQL
 
-### Why Async PostgreSQL Writes?
-
-**Advantages** ✅:
+**Why**:
 - Never blocks hot path
-- Can handle PostgreSQL downtime
-- Retry logic for resilience
-- Batching possible in future
+- Handles PostgreSQL downtime
+- Retry resilience
 
-**Disadvantages** ⚠️:
-- Eventual consistency with audit trail
-- Requires queue management
-- Delayed analytics/reporting
+**Trade-off**: Eventual consistency (acceptable for audit trail)
 
-**Mitigation**: Redis is source of truth; PostgreSQL is audit only
+### BullMQ
 
-### Why BullMQ for Queuing?
-
-**Advantages** ✅:
-- Redis-backed (consistent with architecture)
-- Built-in retry logic
-- Job prioritization
-- Progress tracking
+**Why**:
+- Redis-backed (consistent architecture)
+- Built-in retry/backoff
 - Battle-tested
 
-**Disadvantages** ⚠️:
-- Another dependency
-- Learning curve
+**Alternative considered**: Direct writes (would block hot path)
 
-**Alternatives Considered**:
-- Direct PostgreSQL writes: Blocks hot path
-- In-memory queue: Lost on restart
-- RabbitMQ/SQS: Extra infrastructure
+## Optimistic Locking
 
----
+Concurrent modification detection via `version` field:
 
-## References
+```typescript
+// Update increments version
+newState.version = currentState.version + 1
 
+// Detect conflicts
+if (currentState.version !== expectedVersion) {
+  throw new ConcurrencyError(...)
+}
+```
+
+**Use case**: Multiple instances updating same session simultaneously
+
+## See Also
+
+- [Data Flow Diagrams](DATA_FLOW.md)
 - [Design Decisions](DESIGN_DECISIONS.md)
-- [RedisStateManager API](API_RedisStateManager.md)
-- [DBWriteQueue API](API_DBWriteQueue.md)
-- [Original Architecture](../design/ARCHITECTURE.md)
-- [Phase 1 Validation](../project-tracking/PHASE_1_VALIDATION.md)
+- [RedisStateManager API](../api/RedisStateManager.md)
+- [DBWriteQueue API](../api/DBWriteQueue.md)
