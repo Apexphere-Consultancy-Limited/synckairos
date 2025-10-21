@@ -3,6 +3,14 @@
 
 import Redis from 'ioredis'
 import { SyncState } from '@/types/session'
+import { createComponentLogger } from '@/utils/logger'
+import {
+  SessionNotFoundError,
+  ConcurrencyError,
+  StateDeserializationError,
+} from '@/errors/StateErrors'
+
+const logger = createComponentLogger('RedisStateManager')
 
 export class RedisStateManager {
   private redis: Redis
@@ -27,8 +35,8 @@ export class RedisStateManager {
     try {
       return this.deserializeState(data)
     } catch (err) {
-      console.error(`Failed to parse session ${sessionId}:`, err)
-      return null
+      logger.error({ err, sessionId, data }, 'Failed to deserialize session state')
+      throw new StateDeserializationError(sessionId, data, err as Error)
     }
   }
 
@@ -56,12 +64,14 @@ export class RedisStateManager {
     if (expectedVersion !== undefined) {
       const currentState = await this.getSession(sessionId)
       if (!currentState) {
-        throw new Error(`Session ${sessionId} not found`)
+        throw new SessionNotFoundError(sessionId)
       }
       if (currentState.version !== expectedVersion) {
-        throw new Error(
-          `Concurrent modification detected: expected version ${expectedVersion}, found ${currentState.version}`
+        logger.warn(
+          { sessionId, expectedVersion, actualVersion: currentState.version },
+          'Concurrent modification detected'
         )
+        throw new ConcurrencyError(sessionId, expectedVersion, currentState.version)
       }
     }
 
@@ -77,32 +87,98 @@ export class RedisStateManager {
     const serialized = this.serializeState(newState)
     await this.redis.setex(key, this.SESSION_TTL, serialized)
 
-    // Broadcast update (will implement in Day 2)
-    // await this.broadcastUpdate(sessionId, newState)
+    // Broadcast update to all instances
+    await this.broadcastUpdate(sessionId, newState)
   }
 
   async deleteSession(sessionId: string): Promise<void> {
     const key = this.getSessionKey(sessionId)
     await this.redis.del(key)
 
-    // Broadcast deletion (will implement in Day 2)
-    // await this.broadcastDeletion(sessionId)
+    // Broadcast deletion to all instances
+    await this.broadcastDeletion(sessionId)
   }
 
-  // Pub/Sub (will implement in Day 2)
-  subscribeToUpdates(_callback: (sessionId: string, state: SyncState) => void): void {
-    // TODO: Implement
-    throw new Error('Not implemented')
+  // Pub/Sub - Session Update Broadcasting
+  subscribeToUpdates(callback: (sessionId: string, state: SyncState | null) => void): void {
+    this.pubSubClient.subscribe('session-updates', (err) => {
+      if (err) {
+        logger.error({ err, channel: 'session-updates' }, 'Failed to subscribe to channel')
+        return
+      }
+      logger.info({ channel: 'session-updates' }, 'Subscribed to updates channel')
+    })
+
+    this.pubSubClient.on('message', (channel, message) => {
+      if (channel !== 'session-updates') return
+
+      try {
+        const parsed = JSON.parse(message)
+
+        // Handle deletion messages (state is null)
+        if (parsed.deleted) {
+          callback(parsed.sessionId, null)
+          return
+        }
+
+        // Handle update messages (state is present)
+        const deserializedState = this.deserializeState(parsed.state)
+        callback(parsed.sessionId, deserializedState)
+      } catch (err) {
+        logger.error({ err, channel, message }, 'Failed to process session update message')
+      }
+    })
   }
 
-  async broadcastToSession(_sessionId: string, _message: unknown): Promise<void> {
-    // TODO: Implement
-    throw new Error('Not implemented')
+  private async broadcastUpdate(sessionId: string, state: SyncState): Promise<void> {
+    const message = JSON.stringify({
+      sessionId,
+      state: this.serializeState(state),
+      timestamp: Date.now(),
+    })
+    await this.redis.publish('session-updates', message)
   }
 
-  subscribeToWebSocket(_callback: (sessionId: string, message: unknown) => void): void {
-    // TODO: Implement
-    throw new Error('Not implemented')
+  private async broadcastDeletion(sessionId: string): Promise<void> {
+    const message = JSON.stringify({
+      sessionId,
+      deleted: true,
+      timestamp: Date.now(),
+    })
+    await this.redis.publish('session-updates', message)
+  }
+
+  // Pub/Sub - WebSocket Broadcasting
+  async broadcastToSession(sessionId: string, message: unknown): Promise<void> {
+    const channel = `ws:${sessionId}`
+    const serialized = JSON.stringify({
+      sessionId,
+      message,
+      timestamp: Date.now(),
+    })
+    await this.redis.publish(channel, serialized)
+  }
+
+  subscribeToWebSocket(callback: (sessionId: string, message: unknown) => void): void {
+    this.pubSubClient.psubscribe('ws:*', (err) => {
+      if (err) {
+        logger.error({ err, pattern: 'ws:*' }, 'Failed to subscribe to WebSocket pattern')
+        return
+      }
+      logger.info({ pattern: 'ws:*' }, 'Subscribed to WebSocket pattern')
+    })
+
+    this.pubSubClient.on('pmessage', (pattern, channel, message) => {
+      if (pattern !== 'ws:*') return
+
+      try {
+        const sessionId = channel.replace('ws:', '')
+        const { message: payload } = JSON.parse(message)
+        callback(sessionId, payload)
+      } catch (err) {
+        logger.error({ err, pattern, channel, message }, 'Failed to process WebSocket message')
+      }
+    })
   }
 
   // Lifecycle
