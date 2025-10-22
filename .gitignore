@@ -35,3 +35,4 @@ temp/
 
 # Skills (generated)
 .claude/skills/*.zip
+.env.production

@@ -6,8 +6,20 @@
  */
 
 import { readFileSync } from 'fs'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { config } from 'dotenv'
+
+// Load environment variables BEFORE importing database config
+// Use override to ensure production values take precedence
+if (process.env.NODE_ENV === 'production') {
+  config({ path: '.env.production', override: true })
+}
+
 import { pool } from '../src/config/database'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 const migrations = [
   '001_initial_schema.sql',
@@ -16,6 +28,7 @@ const migrations = [
 
 const runMigrations = async () => {
   console.log('🚀 Running database migrations...\n')
+  console.log('📍 DATABASE_URL:', process.env.DATABASE_URL?.replace(/:[^@]+@/, ':***@'), '\n')
 
   for (const migration of migrations) {
     const filePath = join(__dirname, '../migrations', migration)
