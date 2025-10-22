@@ -94,7 +94,7 @@
 - `src/websocket/WebSocketServer.ts` - Real-time updates
 - `src/api/middlewares/validation.ts` - Zod schemas
 
-**Detailed Tasks:** [phases/PHASE_2.md](phases/PHASE_2.md)
+**Detailed Tasks:** [archive/phase-2/PHASE_2.md](archive/phase-2/PHASE_2.md) (archived)
 
 ---
 

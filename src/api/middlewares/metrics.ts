@@ -1,10 +1,13 @@
 // Metrics Middleware
-// Prometheus metrics collection for HTTP requests
+// Prometheus metrics collection for HTTP requests and system state
 //
 // Metrics:
 // - synckairos_http_requests_total - Total HTTP requests (counter)
 // - synckairos_http_request_duration_ms - HTTP request duration (histogram)
 // - synckairos_switch_cycle_duration_ms - Switch cycle specific latency (histogram)
+// - synckairos_active_sessions - Current active sessions (gauge)
+// - synckairos_websocket_connections - Current WebSocket connections (gauge)
+// - synckairos_db_write_queue_size - DBWriteQueue depth (gauge)
 
 import promClient from 'prom-client'
 import { Request, Response, NextFunction } from 'express'
@@ -63,6 +66,45 @@ export const switchCycleDuration = new promClient.Histogram({
   name: 'synckairos_switch_cycle_duration_ms',
   help: 'Switch cycle operation duration in milliseconds (hot path)',
   buckets: [1, 2, 3, 5, 10, 25, 50],
+  registers: [register],
+})
+
+/**
+ * Active sessions gauge
+ *
+ * Current number of active sessions in Redis.
+ * Updated when sessions are created/deleted.
+ * Useful for monitoring system load and capacity.
+ */
+export const activeSessions = new promClient.Gauge({
+  name: 'synckairos_active_sessions',
+  help: 'Current number of active sessions in Redis',
+  registers: [register],
+})
+
+/**
+ * WebSocket connections gauge
+ *
+ * Current number of WebSocket connections.
+ * Updated on connect/disconnect events.
+ * Monitors real-time connection load.
+ */
+export const websocketConnections = new promClient.Gauge({
+  name: 'synckairos_websocket_connections',
+  help: 'Current number of WebSocket connections',
+  registers: [register],
+})
+
+/**
+ * DBWriteQueue size gauge
+ *
+ * Current depth of the database write queue.
+ * Monitors async write queue to detect backlog.
+ * Should remain bounded under normal operation.
+ */
+export const dbWriteQueueSize = new promClient.Gauge({
+  name: 'synckairos_db_write_queue_size',
+  help: 'Current depth of DBWriteQueue',
   registers: [register],
 })
 
