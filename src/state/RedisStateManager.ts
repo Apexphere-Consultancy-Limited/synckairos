@@ -10,6 +10,7 @@ import {
   StateDeserializationError,
 } from '@/errors/StateErrors'
 import { DBWriteQueue } from './DBWriteQueue'
+import { activeSessions } from '@/api/middlewares/metrics'
 
 const logger = createComponentLogger('RedisStateManager')
 
@@ -56,6 +57,12 @@ export class RedisStateManager {
     const key = this.getSessionKey(state.session_id)
     const serialized = this.serializeState(newState)
     await this.redis.setex(key, this.SESSION_TTL, serialized)
+
+    // Update metrics: increment active sessions
+    activeSessions.inc()
+
+    // Broadcast creation to all instances
+    await this.broadcastUpdate(state.session_id, newState)
 
     // Async DB write (fire-and-forget)
     this.asyncDBWrite(state.session_id, newState, 'session_created').catch(err => {
@@ -107,6 +114,9 @@ export class RedisStateManager {
   async deleteSession(sessionId: string): Promise<void> {
     const key = this.getSessionKey(sessionId)
     await this.redis.del(key)
+
+    // Update metrics: decrement active sessions
+    activeSessions.dec()
 
     // Broadcast deletion to all instances
     await this.broadcastDeletion(sessionId)
