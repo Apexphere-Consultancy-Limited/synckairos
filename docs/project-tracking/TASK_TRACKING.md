@@ -14,10 +14,10 @@
 
 | Task | Component | Priority | Est. Time | Status | Progress | Started | Completed |
 |------|-----------|----------|-----------|--------|----------|---------|-----------|
-| [2.1](tasks/TASK_2.1_SYNCENGINE.md) | SyncEngine | ⭐ CRITICAL | 2-3 days | 🟢 | 100% | 2025-10-21 | 2025-10-21 |
-| [2.2](tasks/TASK_2.2_REST_API.md) | REST API | ⭐ CRITICAL | 2-3 days | 🟢 | 100% | 2025-10-22 | 2025-10-22 |
-| [2.3](tasks/TASK_2.3_VALIDATION.md) | Request Validation | Medium | 1 day | 🟢 | 100% | 2025-10-22 | 2025-10-22 |
-| [2.4](tasks/TASK_2.4_WEBSOCKET.md) | WebSocket Server | ⭐ CRITICAL | 2 days | 🟢 | 100% | 2025-10-22 | 2025-10-22 |
+| [2.1](archive/phase-2/TASK_2.1_SYNCENGINE.md) | SyncEngine | ⭐ CRITICAL | 2-3 days | 🟢 | 100% | 2025-10-21 | 2025-10-21 |
+| [2.2](archive/phase-2/TASK_2.2_REST_API.md) | REST API | ⭐ CRITICAL | 2-3 days | 🟢 | 100% | 2025-10-22 | 2025-10-22 |
+| [2.3](archive/phase-2/TASK_2.3_VALIDATION.md) | Request Validation | Medium | 1 day | 🟢 | 100% | 2025-10-22 | 2025-10-22 |
+| [2.4](archive/phase-2/TASK_2.4_WEBSOCKET.md) | WebSocket Server | ⭐ CRITICAL | 2 days | 🟢 | 100% | 2025-10-22 | 2025-10-22 |
 
 **Status Legend:**
 - 🔴 Not Started
@@ -61,7 +61,7 @@ Phase 1 Complete ✅
 
 ### Task 2.1: SyncEngine Implementation ✅ COMPLETE
 
-**File:** [TASK_2.1_SYNCENGINE.md](tasks/TASK_2.1_SYNCENGINE.md)
+**File:** [TASK_2.1_SYNCENGINE.md](archive/phase-2/TASK_2.1_SYNCENGINE.md) (archived)
 **PR:** [#6](https://github.com/Apexphere-Consultancy-Limited/synckairos/pull/6)
 **Status:** 🟢 Complete
 **Completed:** 2025-10-21
@@ -93,7 +93,7 @@ Phase 1 Complete ✅
 
 ### Task 2.2: REST API Implementation ✅ COMPLETE
 
-**File:** [TASK_2.2_REST_API.md](tasks/TASK_2.2_REST_API.md)
+**File:** [TASK_2.2_REST_API.md](archive/phase-2/TASK_2.2_REST_API.md) (archived)
 **Status:** 🟢 Complete
 **Completed:** 2025-10-22
 
@@ -143,7 +143,7 @@ Phase 1 Complete ✅
 
 ### Task 2.3: Request Validation (Zod) ✅ COMPLETE
 
-**File:** [TASK_2.3_VALIDATION.md](tasks/TASK_2.3_VALIDATION.md)
+**File:** [TASK_2.3_VALIDATION.md](archive/phase-2/TASK_2.3_VALIDATION.md) (archived)
 **PR:** [#7](https://github.com/Apexphere-Consultancy-Limited/synckairos/pull/7) (Combined with Tasks 2.1 & 2.2)
 **Status:** 🟢 Complete
 **Completed:** 2025-10-22
@@ -203,7 +203,7 @@ Phase 1 Complete ✅
 
 ### Task 2.4: WebSocket Server Implementation ✅ COMPLETE
 
-**File:** [TASK_2.4_WEBSOCKET.md](tasks/TASK_2.4_WEBSOCKET.md)
+**File:** [TASK_2.4_WEBSOCKET.md](archive/phase-2/TASK_2.4_WEBSOCKET.md) (archived)
 **Status:** 🟢 Complete
 **Completed:** 2025-10-22
 
@@ -483,7 +483,7 @@ Phase 1 Complete ✅
 
 ## Links
 
-- [Phase 2 Plan](phases/PHASE_2.md)
+- [Phase 2 Plan](archive/phase-2/PHASE_2.md) (archived)
 - [Project Phases](PROJECT_PHASES.md)
 - [Phase 1 Archive](archive/phase-1/)
 - [Dependencies Graph](DEPENDENCIES.md)
