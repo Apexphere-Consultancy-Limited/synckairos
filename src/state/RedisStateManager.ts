@@ -57,6 +57,9 @@ export class RedisStateManager {
     const serialized = this.serializeState(newState)
     await this.redis.setex(key, this.SESSION_TTL, serialized)
 
+    // Broadcast creation to all instances
+    await this.broadcastUpdate(state.session_id, newState)
+
     // Async DB write (fire-and-forget)
     this.asyncDBWrite(state.session_id, newState, 'session_created').catch(err => {
       logger.error({ err, sessionId: state.session_id }, 'Failed to queue DB write')

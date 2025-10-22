@@ -1,18 +1,20 @@
 // SyncKairos v2.0 - Main Entry Point
 // Redis-first distributed synchronization service
 
+import http from 'http'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { RedisStateManager } from '@/state/RedisStateManager'
 import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { SyncEngine } from '@/engine/SyncEngine'
 import { createApp } from '@/api/app'
+import { WebSocketServer } from '@/websocket/WebSocketServer'
 import { logger } from '@/utils/logger'
 import { pool } from '@/config/database'
-import type { Server } from 'http'
 import type Redis from 'ioredis'
 
 // Global references for cleanup
-let server: Server | null = null
+let server: http.Server | null = null
+let wsServer: WebSocketServer | null = null
 let redis: Redis | null = null
 let pubSub: Redis | null = null
 let dbQueue: DBWriteQueue | null = null
@@ -50,14 +52,27 @@ async function main() {
     const app = createApp({ syncEngine })
     logger.info('Express app created')
 
-    // 6. Start HTTP server
+    // 6. Create HTTP server (for WebSocket upgrade)
+    logger.info('Creating HTTP server...')
+    server = http.createServer(app)
+
+    // 7. Create WebSocket server
+    logger.info('Creating WebSocket server...')
+    wsServer = new WebSocketServer(server, stateManager)
+    logger.info('WebSocket server created')
+
+    // 8. Start server
     const port = parseInt(process.env.PORT || '3000', 10)
-    server = app.listen(port, '0.0.0.0', () => {
-      logger.info({ port }, 'HTTP server started successfully')
-      logger.info(`SyncKairos v2.0 ready at http://0.0.0.0:${port}`)
+    await new Promise<void>((resolve) => {
+      server!.listen(port, '0.0.0.0', () => {
+        logger.info({ port }, 'Server started successfully (HTTP + WebSocket)')
+        logger.info(`SyncKairos v2.0 ready at http://0.0.0.0:${port}`)
+        logger.info(`WebSocket endpoint: ws://0.0.0.0:${port}/ws`)
+        resolve()
+      })
     })
 
-    // 7. Setup graceful shutdown
+    // 9. Setup graceful shutdown
     setupGracefulShutdown()
   } catch (err) {
     logger.fatal({ err }, 'Fatal error during startup')
@@ -70,7 +85,7 @@ async function main() {
  *
  * Ensures all connections are closed properly:
  * 1. Stop accepting new HTTP requests
- * 2. Close WebSocket connections (Task 2.4)
+ * 2. Close WebSocket connections
  * 3. Close Redis connections
  * 4. Close DBWriteQueue
  * 5. Close PostgreSQL pool
@@ -88,11 +103,15 @@ function setupGracefulShutdown() {
       })
     }
 
-    // 2. Close WebSocket connections (Task 2.4 - will be implemented later)
-    // if (wsServer) {
-    //   await wsServer.close()
-    //   logger.info('WebSocket server closed')
-    // }
+    // 2. Close WebSocket connections
+    try {
+      if (wsServer) {
+        await wsServer.close()
+        logger.info('WebSocket server closed')
+      }
+    } catch (err) {
+      logger.error({ err }, 'Error closing WebSocket server')
+    }
 
     // 3. Close Redis connections
     try {
