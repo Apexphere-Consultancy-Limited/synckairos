@@ -18,8 +18,8 @@
 2. Configure database:
    - **Name:** `synckairos-staging`
    - **Type:** Regional (lower latency)
-   - **Region:** US West (Oregon) or US West (N. California)
-     - Match closest to Fly.io `sjc` region
+   - **Region:** Australia (Sydney) or Asia-Pacific (Singapore)
+     - Match closest to Fly.io `syd` region (New Zealand)
    - **Plan:** Free (10k commands/day, 256MB)
    - **TLS:** Enabled (required for production)
    - **Eviction:** Enabled (recommended)
@@ -53,7 +53,7 @@
    - **Organization:** Create new or use existing
    - **Name:** `synckairos-staging`
    - **Database Password:** Generate strong password (save securely!)
-   - **Region:** West US (Oregon) - matches Fly.io and Upstash
+   - **Region:** Australia (Sydney) or Asia Pacific (Singapore) - matches Fly.io and Upstash
    - **Plan:** Free (500MB database, 2GB bandwidth/month)
    - **Pricing:** $0/month
 3. Click **"Create new project"**

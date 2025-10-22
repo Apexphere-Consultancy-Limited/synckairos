@@ -1,7 +1,7 @@
 # Fly.io Configuration for SyncKairos v2.0
 # Application name - update this for different environments
 app = 'synckairos-staging'
-primary_region = 'sjc'  # San Jose, California (closest region)
+primary_region = 'syd'  # Sydney, Australia (closest to New Zealand)
 
 # Build configuration
 [build]
@@ -55,5 +55,5 @@ primary_region = 'sjc'  # San Jose, California (closest region)
 
 # Regions (add more as needed)
 [regions]
-  primary = 'sjc'  # San Jose
-  # secondary = ['lax', 'sea']  # Los Angeles, Seattle (uncomment to add)
+  primary = 'syd'  # Sydney, Australia
+  # secondary = ['sin', 'nrt']  # Singapore, Tokyo (uncomment for multi-region)
