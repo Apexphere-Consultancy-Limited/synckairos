@@ -8,6 +8,10 @@
 -- ENUMS
 -- =====================================================
 
+-- Drop existing types if they exist (idempotent migrations)
+DROP TYPE IF EXISTS sync_mode CASCADE;
+DROP TYPE IF EXISTS sync_status CASCADE;
+
 -- Synchronization modes
 CREATE TYPE sync_mode AS ENUM (
   'per_participant',
@@ -30,6 +34,11 @@ CREATE TYPE sync_status AS ENUM (
 -- =====================================================
 -- TABLES
 -- =====================================================
+
+-- Drop existing tables if they exist (idempotent migrations)
+DROP TABLE IF EXISTS sync_participants CASCADE;
+DROP TABLE IF EXISTS sync_events CASCADE;
+DROP TABLE IF EXISTS sync_sessions CASCADE;
 
 -- Synchronization sessions audit trail
 CREATE TABLE sync_sessions (
