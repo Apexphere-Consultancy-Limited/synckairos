@@ -3,6 +3,7 @@ import { Server as HTTPServer } from 'http'
 import { RedisStateManager } from '../state/RedisStateManager'
 import { createComponentLogger } from '../utils/logger'
 import { ServerMessage, ClientMessage } from '../types/websocket'
+import { websocketConnections } from '../api/middlewares/metrics'
 
 const logger = createComponentLogger('WebSocketServer')
 
@@ -57,6 +58,9 @@ export class WebSocketServer {
         }
         this.clients.get(sessionId)!.add(ws)
 
+        // Update metrics: increment WebSocket connections
+        websocketConnections.inc()
+
         // Mark as alive for heartbeat and store sessionId
         const extWs = ws as any
         extWs.isAlive = true
@@ -98,6 +102,9 @@ export class WebSocketServer {
     const clients = this.clients.get(sessionId)
     if (clients) {
       clients.delete(ws)
+
+      // Update metrics: decrement WebSocket connections
+      websocketConnections.dec()
 
       // Clean up empty groups
       if (clients.size === 0) {

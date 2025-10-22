@@ -3,6 +3,7 @@ import { SyncState } from '@/types/session'
 import { pool } from '@/config/database'
 import Redis from 'ioredis'
 import { logger } from '@/utils/logger'
+import { dbWriteQueueSize } from '@/api/middlewares/metrics'
 
 export interface DBWriteJobData {
   sessionId: string
@@ -74,11 +75,18 @@ export class DBWriteQueue {
     })
 
     // Worker events
-    this.worker.on('completed', job => {
+    this.worker.on('completed', async job => {
       logger.debug(
         { jobId: job.id, sessionId: job.data.sessionId },
         `[Worker] Job completed for session`
       )
+
+      // Update metrics: decrement queue size
+      const [waiting, active] = await Promise.all([
+        this.queue.getWaitingCount(),
+        this.queue.getActiveCount(),
+      ])
+      dbWriteQueueSize.set(waiting + active)
     })
 
     this.worker.on('failed', (job, err) => {
@@ -136,6 +144,13 @@ export class DBWriteQueue {
       eventType,
       timestamp: Date.now(),
     })
+
+    // Update metrics: set queue size to waiting + active
+    const [waiting, active] = await Promise.all([
+      this.queue.getWaitingCount(),
+      this.queue.getActiveCount(),
+    ])
+    dbWriteQueueSize.set(waiting + active)
   }
 
   private async performDBWrite(data: DBWriteJobData): Promise<void> {
