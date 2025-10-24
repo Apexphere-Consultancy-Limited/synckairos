@@ -8,8 +8,7 @@ import { websocketConnections } from '../api/middlewares/metrics'
 const logger = createComponentLogger('WebSocketServer')
 
 // UUID validation regex
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export class WebSocketServer {
   private wss: WSServer
@@ -79,12 +78,12 @@ export class WebSocketServer {
         )
 
         // Setup message handlers
-        ws.on('message', (data) => this.handleClientMessage(ws, sessionId, data))
+        ws.on('message', data => this.handleClientMessage(ws, sessionId, data))
         ws.on('pong', () => {
           extWs.isAlive = true
         })
         ws.on('close', () => this.handleDisconnection(ws, sessionId))
-        ws.on('error', (err) => {
+        ws.on('error', err => {
           logger.error({ err, sessionId }, 'WebSocket error')
         })
       } catch (err) {
@@ -111,10 +110,7 @@ export class WebSocketServer {
         this.clients.delete(sessionId)
       }
 
-      logger.info(
-        { sessionId, remainingClients: clients.size },
-        'Client disconnected'
-      )
+      logger.info({ sessionId, remainingClients: clients.size }, 'Client disconnected')
     }
   }
 
@@ -136,7 +132,7 @@ export class WebSocketServer {
         // Close all connections for this session
         const clients = this.clients.get(sessionId)
         if (clients) {
-          clients.forEach((ws) => {
+          clients.forEach(ws => {
             ws.close(1000, 'Session deleted')
           })
           this.clients.delete(sessionId)
@@ -174,7 +170,7 @@ export class WebSocketServer {
     const messageStr = JSON.stringify(message)
     let sentCount = 0
 
-    clients.forEach((ws) => {
+    clients.forEach(ws => {
       if (ws.readyState === WebSocket.OPEN) {
         try {
           ws.send(messageStr)
@@ -284,12 +280,12 @@ export class WebSocketServer {
     }
 
     // Close all connections
-    this.wss.clients.forEach((ws) => {
+    this.wss.clients.forEach(ws => {
       ws.close(1001, 'Server shutting down')
     })
 
     // Close WSS
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       this.wss.close(() => {
         logger.info('WebSocket server closed')
         resolve()

@@ -13,6 +13,7 @@
 
 import { test, expect } from '@playwright/test'
 import { getEnvironment } from './setup/environments'
+import { generateSessionId, createParticipant, createSessionPayload, TEST_PARTICIPANTS } from './test-utils'
 
 const createdSessions: string[] = []
 
@@ -31,19 +32,15 @@ test.afterEach(async ({ request }) => {
 
 test('rate limiting enforcement @comprehensive @api', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-ratelimit-${Date.now()}`
+  const sessionId = generateSessionId('e2e-ratelimit')
   createdSessions.push(sessionId)
 
   // Create session
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [
-        { participant_id: 'p1', total_time_ms: 300000 },
-        { participant_id: 'p2', total_time_ms: 300000 }
-      ]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+      createParticipant(TEST_PARTICIPANTS.P2, 1, 300000),
+    ])
   })
 
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
@@ -81,19 +78,15 @@ test('rate limiting enforcement @comprehensive @api', async ({ request }) => {
 
 test('rate limit applies across endpoints @comprehensive', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-ratelimit-multi-${Date.now()}`
+  const sessionId = generateSessionId('e2e-ratelimit-multi')
   createdSessions.push(sessionId)
 
   // Create session
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [
-        { participant_id: 'p1', total_time_ms: 300000 },
-        { participant_id: 'p2', total_time_ms: 300000 }
-      ]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+      createParticipant(TEST_PARTICIPANTS.P2, 1, 300000),
+    ])
   })
 
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)

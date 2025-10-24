@@ -39,8 +39,9 @@ This skill provides the complete development workflow for the SyncKairos project
 ⚠️ **CRITICAL**: SyncKairos uses **Zod schemas with OpenAPI metadata** as the single source of truth for ALL API contracts.
 
 **Key Files:**
-- **[src/types/api-contracts.ts](../../../src/types/api-contracts.ts)** - Zod schemas with OpenAPI metadata
-- **[src/api/openapi.ts](../../../src/api/openapi.ts)** - Auto-generated OpenAPI 3.1 document
+- **[src/api/schemas/session.ts](../../../src/api/schemas/session.ts)** - Zod schemas with OpenAPI metadata (REQUEST + RESPONSE)
+- **[src/api/openapi.ts](../../../src/api/openapi.ts)** - OpenAPI spec generator (registers routes)
+- **[src/api/routes/docs.ts](../../../src/api/routes/docs.ts)** - Swagger UI endpoint
 
 **What This Means:**
 1. ✅ **DO**: Update Zod schemas when changing APIs
@@ -50,15 +51,18 @@ This skill provides the complete development workflow for the SyncKairos project
 
 **Architecture:**
 ```
-Zod Schemas → Runtime Validation + TypeScript Types + OpenAPI Docs
+Zod Schemas (session.ts) → Runtime Validation + TypeScript Types + OpenAPI Docs
+                         ↓
+                    Swagger UI (/api-docs)
 ```
 
 When API changes:
-1. Update Zod schema in `src/types/api-contracts.ts`
-2. TypeScript types auto-update
-3. OpenAPI docs auto-generate
-4. Contract tests validate the change
-5. No manual docs needed!
+1. Update Zod schema in `src/api/schemas/session.ts`
+2. TypeScript types auto-update (via `z.infer`)
+3. OpenAPI docs auto-generate (via `openapi.ts`)
+4. Swagger UI updates automatically at `/api-docs`
+5. Contract tests validate the change
+6. No manual docs needed!
 
 See [docs/design/ARCHITECTURE.md](../../../docs/design/ARCHITECTURE.md#api-contract---single-source-of-truth) for complete details.
 

@@ -23,6 +23,7 @@ import { createSessionRoutes } from './routes/sessions'
 import { createTimeRoutes } from './routes/time'
 import { createHealthRoutes } from './routes/health'
 import { createMetricsRoutes } from './routes/metrics'
+import { createDocsRoutes } from './routes/docs'
 
 export interface AppConfig {
   syncEngine: SyncEngine
@@ -74,23 +75,31 @@ export function createApp(config: AppConfig): Application {
   // 6. Metrics endpoint (no rate limiting - Prometheus scraper needs access)
   app.use(createMetricsRoutes())
 
-  // 7. General rate limiter (for all other routes)
+  // 7. API Documentation (no rate limiting - developers need access)
+  app.use(createDocsRoutes())
+
+  // 8. General rate limiter (for all other routes)
   // Applied before business logic routes
   app.use((_req, res, next) => {
-    // Skip rate limiting for health/metrics
-    if (_req.url === '/health' || _req.url === '/metrics' || _req.url === '/ready') {
+    // Skip rate limiting for health/metrics/docs
+    if (
+      _req.url === '/health' ||
+      _req.url === '/metrics' ||
+      _req.url === '/ready' ||
+      _req.url.startsWith('/api-docs')
+    ) {
       return next()
     }
     generalLimiter(_req, res, next)
   })
 
-  // 8. Time routes
+  // 9. Time routes
   app.use(createTimeRoutes())
 
-  // 9. Session routes
+  // 10. Session routes
   app.use(createSessionRoutes(config.syncEngine))
 
-  // 10. Error handler (MUST BE LAST)
+  // 11. Error handler (MUST BE LAST)
   app.use(errorHandler)
 
   logger.info('Express app configured')

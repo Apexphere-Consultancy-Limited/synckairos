@@ -12,7 +12,7 @@
 
 import { test, expect } from '@playwright/test'
 import { getEnvironment } from './setup/environments'
-import { HealthResponseSchema } from '../../src/types/api-contracts'
+import { HealthResponseSchema } from '../../src/api/schemas/session'
 
 test('health endpoint @critical @smoke', async ({ request }) => {
   const env = getEnvironment()
