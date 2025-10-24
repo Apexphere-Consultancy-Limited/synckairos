@@ -9,6 +9,8 @@ description: Test generation and validation skill for SyncKairos v2.0 developmen
 
 This skill guides test creation for SyncKairos v2.0, ensuring comprehensive coverage across unit tests (Vitest), integration tests (Supertest), and load tests (k6). It enforces testing requirements, performance targets, and edge case coverage.
 
+⚠️ **CRITICAL**: All tests must use **Zod schemas** ([src/types/api-contracts.ts](../../../src/types/api-contracts.ts)) for validation. Never create manual validation logic - import and use the schema validators. Contract tests ([tests/contract/websocket-schemas.test.ts](../../../tests/contract/websocket-schemas.test.ts)) validate schemas match implementation.
+
 ## Core Capabilities
 
 ### 1. Unit Test Generation (Vitest)

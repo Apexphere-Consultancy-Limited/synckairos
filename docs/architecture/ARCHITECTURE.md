@@ -104,6 +104,110 @@ Critical operations (<50ms) must never touch PostgreSQL:
 
 ---
 
+## API Contract - Single Source of Truth
+
+SyncKairos uses **Zod schemas with OpenAPI metadata** as the single source of truth for all API contracts. This eliminates documentation drift and ensures consistency across the entire system.
+
+### Architecture
+
+```
+                    SINGLE SOURCE OF TRUTH
+                            ↓
+        Zod Schemas (src/types/api-contracts.ts)
+                ↓           ↓           ↓
+         Runtime      TypeScript    OpenAPI
+        Validation      Types      Documentation
+                ↓           ↓           ↓
+         Backend      Frontend    AI Tools
+         E2E Tests    Validation   Auto-docs
+```
+
+### Key Files
+
+- **[src/types/api-contracts.ts](../../src/types/api-contracts.ts)** - Zod schemas with OpenAPI metadata
+- **[src/api/openapi.ts](../../src/api/openapi.ts)** - Auto-generated OpenAPI 3.1 document
+- **[tests/contract/websocket-schemas.test.ts](../../tests/contract/websocket-schemas.test.ts)** - Contract validation tests
+
+### Benefits
+
+1. **Never Out of Sync** - Documentation auto-generates from schemas
+2. **Type Safe** - TypeScript types inferred from Zod schemas
+3. **Runtime Validated** - Requests/responses validated at runtime
+4. **AI Readable** - OpenAPI spec consumable by AI tools and generators
+5. **Contract Tests** - Automatically validate schemas match implementation
+
+### Example: WebSocket Message Schema
+
+```typescript
+export const WSStateUpdateMessageSchema = z
+  .object({
+    type: z.literal('STATE_UPDATE').openapi({ description: 'Message type' }),
+    sessionId: z.string().openapi({ description: 'Session ID', example: 'session-123' }),
+    timestamp: z.number().int().openapi({ description: 'Unix timestamp (ms)' }),
+    state: SyncStateSchema.openapi({ description: 'Complete session state' }),
+  })
+  .openapi({
+    ref: 'WSStateUpdateMessage',
+    description: 'Core message: Sent whenever session state changes. Contains full state.',
+  })
+
+// TypeScript type automatically inferred
+export type WSStateUpdateMessage = z.infer<typeof WSStateUpdateMessageSchema>
+
+// Runtime validation
+const result = WSStateUpdateMessageSchema.safeParse(incomingMessage)
+
+// OpenAPI documentation auto-generated
+// No manual markdown files to maintain!
+```
+
+### Usage in Code
+
+**Backend validation:**
+```typescript
+import { CreateSessionRequestSchema } from '@/types/api-contracts'
+
+// Validate request body
+const result = CreateSessionRequestSchema.safeParse(req.body)
+if (!result.success) {
+  return res.status(400).json({ error: result.error })
+}
+```
+
+**Frontend validation:**
+```typescript
+import { ServerMessageSchema } from '@/types/api-contracts'
+
+ws.on('message', (data) => {
+  const result = ServerMessageSchema.safeParse(JSON.parse(data))
+  if (result.success) {
+    handleMessage(result.data)
+  }
+})
+```
+
+**E2E tests:**
+```typescript
+import { ServerMessageSchema } from '@/types/api-contracts'
+
+const message = JSON.parse(wsData)
+const result = ServerMessageSchema.safeParse(message)
+expect(result.success).toBe(true)
+```
+
+### Maintenance
+
+When API changes:
+1. Update Zod schema in `api-contracts.ts`
+2. OpenAPI docs auto-update
+3. TypeScript types auto-update
+4. Contract tests validate the change
+5. No manual documentation updates needed
+
+**Key Principle:** Zod schemas are the source of truth. Everything else is generated or inferred.
+
+---
+
 ## Redis Data Structure (PRIMARY State Store)
 
 ### Session State in Redis

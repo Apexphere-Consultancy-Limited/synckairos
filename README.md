@@ -12,18 +12,29 @@ High-performance real-time synchronization service with distributed-first archit
 
 ## Quick Start
 
+### One-Command Setup (Recommended)
+```bash
+# Install dependencies
+pnpm install
+
+# Start local environment (Docker Compose + migrations + app)
+./scripts/start-local.sh
+```
+
+### Manual Setup
 ```bash
 # Install
 pnpm install
 
-# Setup
-cp .env.example .env
-docker run -d -p 6379:6379 redis:7-alpine
-docker run -d -p 5432:5432 -e POSTGRES_DB=synckairos -e POSTGRES_PASSWORD=password postgres:15
+# Start infrastructure
+docker compose up -d
 
-# Run
-pnpm run migrate
-pnpm dev
+# Run migrations
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/synckairos?sslmode=disable" node scripts/direct-migrate.js
+
+# Build and run
+pnpm build
+pnpm start
 ```
 
 ## Phase 1 Status: 🟢 Complete
@@ -88,12 +99,40 @@ src/
 
 ## Development
 
+### Local Development
 ```bash
-pnpm test              # Run all tests
-pnpm test:coverage     # With coverage report
-pnpm test:multi-instance  # Multi-instance validation
-pnpm lint              # Check code style
-pnpm build             # Production build
+./scripts/start-local.sh   # Start local environment (one command)
+```
+
+### Testing & Building
+```bash
+pnpm test                  # Run all tests
+pnpm test:coverage         # With coverage report
+pnpm test:multi-instance   # Multi-instance validation
+pnpm lint                  # Check code style
+pnpm build                 # Production build
+```
+
+### Infrastructure Management
+```bash
+# Test connections
+node .claude/skills/devops/scripts/test-redis.js
+node .claude/skills/devops/scripts/test-postgres.js
+
+# Check health
+bash .claude/skills/devops/scripts/check-health.sh
+
+# Validate environment
+bash .claude/skills/devops/scripts/validate-env.sh .env
+```
+
+### Deployment
+```bash
+# Deploy to staging
+./scripts/deploy.sh synckairos-staging staging
+
+# Deploy to production
+./scripts/deploy.sh synckairos-production production
 ```
 
 ## License

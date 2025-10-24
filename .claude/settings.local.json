@@ -14,7 +14,12 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm lint:fix:*)",
       "Read(//Users/yazang/.claude/skills/developer/**)",
-      "Skill(project-manager)"
+      "Skill(project-manager)",
+      "Bash(docker compose:*)",
+      "Bash(curl:*)",
+      "Read(//Users/yazang/.claude/skills/devops/**)",
+      "Bash(./scripts/start-local.sh:*)",
+      "Read(//Users/yazang/.claude/skills/docker/**)"
     ],
     "deny": [],
     "ask": []

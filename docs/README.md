@@ -4,181 +4,107 @@ This document provides a complete map of the SyncKairos documentation and guides
 
 ## Documentation Structure
 
-### Start Here
+### Architecture & Design
 
-#### 1. [design/OVERVIEW.md](design/OVERVIEW.md) ⭐ **START HERE**
-- What is SyncKairos and why it exists
-- Design principles (Calculate Don't Count, Distributed-First, Hot Path Optimization)
-- Key features and use cases
-- Implementation roadmap
+**[architecture/](architecture/)** - System architecture and design decisions
 
-#### 2. [design/TECH_STACK.md](design/TECH_STACK.md) 🔧 **TECH STACK**
-- Complete technology stack analysis
-- Node.js + TypeScript + Redis rationale
-- Performance benchmarks and validation
-- Full dependency list and project structure
+- **[ARCHITECTURE.md](architecture/ARCHITECTURE.md)** ⭐ **MAIN REFERENCE**
+  - System architecture overview (Redis-first distributed design)
+  - API Contract - Single Source of Truth (Zod schemas)
+  - Database schema design
+  - Performance requirements and targets
+  - Key architectural decisions
 
-#### 3. [design/TECH_STACK_ALIGNMENT_REVIEW.md](design/TECH_STACK_ALIGNMENT_REVIEW.md) ✅ **VALIDATION**
-- Tech stack vs architecture alignment review
-- Performance requirements validation
-- Risk analysis and mitigations
-- Final approval recommendation
+- **[SYSTEM_DESIGN.md](architecture/SYSTEM_DESIGN.md)** - Detailed system design
+- **[DATA_FLOW.md](architecture/DATA_FLOW.md)** - Data flow diagrams
+- **[DESIGN_DECISIONS.md](architecture/DESIGN_DECISIONS.md)** - Key design decisions
+- **[README.md](architecture/README.md)** - Architecture documentation index
 
-### Core Design Documentation
+**[architecture/ADR/](architecture/ADR/)** - Architectural Decision Records
 
-#### 4. [design/ARCHITECTURE.md](design/ARCHITECTURE.md)
-- System architecture overview (Redis-first distributed design)
-- Database schema design
-- Performance requirements and targets
-- Key architectural decisions
+- **[WEBSOCKET_API_ANALYSIS.md](architecture/ADR/WEBSOCKET_API_ANALYSIS.md)** - STATE_UPDATE vs granular events decision
 
-#### 5. [design/API_REFERENCE.md](design/API_REFERENCE.md)
-- REST API endpoint specifications
-- WebSocket protocol definition
-- Request/response examples
-- Authentication requirements
+### Component Documentation
 
-#### 6. [design/IMPLEMENTATION.md](design/IMPLEMENTATION.md)
-- RedisStateManager implementation (Redis-first)
-- SyncEngine implementation guide
-- Production-ready patterns
-- Code examples and best practices
+**[components/](components/)** - Internal component API documentation
 
-#### 7. [design/USE_CASES.md](design/USE_CASES.md)
-- Supported use cases across industries
-- Configuration examples
-- Integration examples (Chess, Quiz, Poker, etc.)
-- Sync mode selection guide
+- **[RedisStateManager.md](components/RedisStateManager.md)** - RedisStateManager class API reference
+  - CRUD operations, TTL management, Pub/Sub
+  - Performance: 0.25ms GET, 0.46ms UPDATE
+  - Best practices and error handling
 
-#### 8. [design/DEPLOYMENT.md](design/DEPLOYMENT.md)
-- PaaS deployment options (Fly.io, Railway, AWS App Runner)
-- Docker and Kubernetes configurations
-- Infrastructure requirements
-- Monitoring and scaling strategies
+- **[DBWriteQueue.md](components/DBWriteQueue.md)** - BullMQ audit queue API reference
+  - Async PostgreSQL writes via BullMQ
+  - Retry logic and metrics
 
-#### 9. [design/MOBILE_CONSIDERATIONS.md](design/MOBILE_CONSIDERATIONS.md) 📱 **MOBILE SUPPORT**
-- Backend requirements for mobile clients
-- Push notification integration (Firebase)
-- Mobile-optimized endpoints
-- Network resilience and battery optimization
+- **[CONFIGURATION.md](components/CONFIGURATION.md)** - Configuration reference
+  - Environment variables
+  - Redis/PostgreSQL settings
+  - Constants and defaults
 
-### Future Architecture (v3.0 - Deferred)
+### Guides & How-Tos
+
+**[guides/](guides/)** - Practical guides for developers and operators
+
+- **[DEVELOPMENT.md](guides/DEVELOPMENT.md)** - Development guide
+- **[TESTING.md](guides/TESTING.md)** - Testing guide
+- **[DEPLOYMENT.md](guides/DEPLOYMENT.md)** - Deployment guide (Fly.io, Docker)
+- **[INFRASTRUCTURE_SETUP.md](guides/INFRASTRUCTURE_SETUP.md)** - Infrastructure setup (Upstash Redis, Supabase PostgreSQL)
+- **[TROUBLESHOOTING.md](guides/TROUBLESHOOTING.md)** - Troubleshooting guide
+- **[USE_CASES.md](guides/USE_CASES.md)** - Usage examples and integration patterns
+- **[MOBILE_CONSIDERATIONS.md](guides/MOBILE_CONSIDERATIONS.md)** 📱 - Mobile client guide
+  - Backend requirements for mobile clients
+  - Push notification integration (Firebase)
+  - Network resilience and battery optimization
+
+### Project Tracking
+
+**[project-tracking/](project-tracking/)** - Implementation management and task tracking
+
+- **[PROJECT_PHASES.md](project-tracking/PROJECT_PHASES.md)** 📋 - 4-week implementation roadmap
+- **[DEPENDENCIES.md](project-tracking/DEPENDENCIES.md)** 🔗 - Component dependencies and critical path
+- **Phase-specific tracking:**
+  - [phases/PHASE_1.md](project-tracking/phases/PHASE_1.md) - Week 1: Core Architecture
+  - [phases/PHASE_2.md](project-tracking/phases/PHASE_2.md) - Week 2: Business Logic & API
+  - [phases/PHASE_3.md](project-tracking/phases/PHASE_3.md) - Week 3: Testing & Quality
+  - [phases/PHASE_4.md](project-tracking/phases/PHASE_4.md) - Week 4: Deployment
+- **Detailed task breakdowns:** [tasks/](project-tracking/tasks/)
+
+### Testing Documentation
+
+**[testing/](testing/)** - Test strategies and results
+
+- **[e2e/](testing/e2e/)** - End-to-end testing documentation
+
+### Version 3 Design (Future)
+
+**[design/v3/](design/v3/)** - Future extensible architecture proposals (deferred)
 
 > **Decision:** Following fast time-to-market strategy with v2.0 architecture.
 > v3.0 extensible architecture proposals are available for future consideration.
 
-#### 10. [design/v3/EXTENSIBILITY_REVIEW.md](design/v3/EXTENSIBILITY_REVIEW.md) 🔄
-- Analysis of v2.0 architectural limitations
-- Decoupling strategies for future extensibility
-- Interface-based abstractions proposal
-- Plugin architecture recommendations
+- **[EXTENSIBILITY_REVIEW.md](design/v3/EXTENSIBILITY_REVIEW.md)** 🔄
+  - Analysis of v2.0 architectural limitations
+  - Decoupling strategies for future extensibility
 
-#### 11. [design/v3/ARCHITECTURE_V3_PROPOSAL.md](design/v3/ARCHITECTURE_V3_PROPOSAL.md) 🚀 **FUTURE**
-- Complete redesign with extensibility built-in from day 1
-- Interface-based abstractions (IStateManager, IMessageBroker, ISyncModePlugin)
-- Layered architecture (API → Application → Domain → Infrastructure)
-- Plugin system for unlimited extensibility
-- Protocol versioning and backward compatibility
-- Configuration-driven architecture
-- **Status:** Deferred in favor of v2.0 fast implementation
+- **[ARCHITECTURE_V3_PROPOSAL.md](design/v3/ARCHITECTURE_V3_PROPOSAL.md)** 🚀
+  - Complete redesign with extensibility built-in
+  - Interface-based abstractions (IStateManager, IMessageBroker, ISyncModePlugin)
+  - Plugin system for unlimited extensibility
+  - **Status:** Deferred in favor of v2.0 fast implementation
 
-#### 12. [design/v3/ARCHITECTURE_V3_ADDENDUM.md](design/v3/ARCHITECTURE_V3_ADDENDUM.md) 🔍 **FUTURE**
-- Additional design considerations for v3.0
-- Transaction and consistency models
-- Cross-cutting concerns (tracing, logging, metrics)
-- Error handling and recovery strategies
-- Security, testing, and observability patterns
-- **Status:** Available for future v3.0 migration
+- **[ARCHITECTURE_V3_ADDENDUM.md](design/v3/ARCHITECTURE_V3_ADDENDUM.md)** 🔍
+  - Additional design considerations for v3.0
+  - Transaction models, error handling, observability patterns
+  - **Status:** Available for future v3.0 migration
 
-### Project Tracking (Implementation Management)
+### Archive
 
-> **Status:** Phase 1 - Not Started
+**[archive/](archive/)** - Historical and obsolete documentation
 
-#### 16. [project-tracking/PROJECT_PHASES.md](project-tracking/PROJECT_PHASES.md) 📋 **TRACK PROGRESS**
-- 4-week implementation roadmap (Phases 1-4)
-- Task tracking with checkboxes
-- Progress percentages and status updates
-- Success criteria for each phase
-- Weekly review process
-
-#### 17. [project-tracking/phases/PHASE_1.md](project-tracking/phases/PHASE_1.md) ⭐ **WEEK 1**
-- Detailed tasks for Core Architecture phase
-- RedisStateManager, PostgreSQL, DBWriteQueue
-- Day-by-day breakdown with acceptance criteria
-- Estimated time: 5-7 days
-
-#### 18. [project-tracking/phases/PHASE_2.md](project-tracking/phases/PHASE_2.md) ⭐ **WEEK 2**
-- Detailed tasks for Business Logic & API phase
-- SyncEngine, REST API, WebSocket Server
-- Hot path optimization (<50ms target)
-- Estimated time: 5-7 days
-
-#### 19. [project-tracking/phases/PHASE_3.md](project-tracking/phases/PHASE_3.md) ⭐ **WEEK 3**
-- Detailed tasks for Testing & Quality phase
-- Logging, Metrics, Health Checks, Load Testing (k6)
-- Performance validation (10,000+ concurrent sessions)
-- Estimated time: 5-7 days
-
-#### 20. [project-tracking/phases/PHASE_4.md](project-tracking/phases/PHASE_4.md) 🚀 **WEEK 4 - LAUNCH**
-- Detailed tasks for Deployment phase
-- Docker, PaaS (Fly.io/Railway), Infrastructure
-- Production validation and launch
-- Estimated time: 5-7 days
-
-#### 21. [project-tracking/DEPENDENCIES.md](project-tracking/DEPENDENCIES.md) 🔗 **CRITICAL PATH**
-- Component dependency graph
-- Critical path visualization
-- Parallelization opportunities
-- Bottleneck analysis and risk mitigation
-
-#### 22. [project-tracking/TASK_TRACKING.md](project-tracking/TASK_TRACKING.md) ✅ **DETAILED TASKS**
-- Detailed task breakdown for Phase 1
-- Individual task files with acceptance criteria
-- Daily progress tracking
-- Performance benchmarks and test coverage metrics
-
-#### 23. [project-tracking/tasks/TASK_1.1_PROJECT_SETUP.md](project-tracking/tasks/TASK_1.1_PROJECT_SETUP.md) 🔧 **TASK 1.1**
-- Project initialization, TypeScript setup, dependencies
-- 6 subtasks with step-by-step instructions
-- Estimated time: 0.5 days (4 hours)
-
-#### 24. [project-tracking/tasks/TASK_1.2_REDIS_STATE_MANAGER.md](project-tracking/tasks/TASK_1.2_REDIS_STATE_MANAGER.md) ⭐ **TASK 1.2 - CRITICAL**
-- RedisStateManager implementation (PRIMARY state store)
-- Day-by-day breakdown (3 days)
-- Performance targets: <3ms reads, <5ms writes
-- Coverage target: >90%
-
-#### 25. [project-tracking/tasks/TASK_1.3_POSTGRESQL_SCHEMA.md](project-tracking/tasks/TASK_1.3_POSTGRESQL_SCHEMA.md) 🗄️ **TASK 1.3**
-- PostgreSQL schema for AUDIT TRAIL only
-- Migrations, indexes, connection pool
-- Estimated time: 1 day
-
-#### 26. [project-tracking/tasks/TASK_1.4_DBWRITEQUEUE.md](project-tracking/tasks/TASK_1.4_DBWRITEQUEUE.md) 🔄 **TASK 1.4**
-- BullMQ async database writes
-- Retry logic (5 attempts, exponential backoff)
-- Estimated time: 1-2 days
-
-#### 27. [project-tracking/tasks/TASK_1.5_VALIDATION.md](project-tracking/tasks/TASK_1.5_VALIDATION.md) ✔️ **TASK 1.5**
-- Phase 1 validation and quality assurance
-- Multi-instance testing, performance validation
-- Estimated time: 0.5 days (4 hours)
-
-### Archive (Historical Documents)
-
-#### 28. [archive/ARCHITECTURE_REVIEW.md](archive/ARCHITECTURE_REVIEW.md) 📚
-- Historical: First architecture review (Redis-first design)
-- Original issues and solutions
-- Migration from single-server to distributed
-
-#### 29. [archive/ARCHITECTURE_REVIEW_2.md](archive/ARCHITECTURE_REVIEW_2.md) 📚
-- Historical: Second architecture review (Production hardening)
-- 12 critical issues identified and fixed
-- All issues now resolved in main documentation
-
-#### 30. [archive/SYSTEM_DESIGN.md](archive/SYSTEM_DESIGN.md)
-- Original comprehensive design document
-- Reference for complete implementation details
-- NOTE: Contains outdated architecture - see main docs for corrections
+- Pre-implementation planning documents (superseded by actual implementation)
+- Old architecture reviews (superseded by current architecture)
+- Legacy design documents (reference only)
 
 ---
 
@@ -189,34 +115,48 @@ This document provides a complete map of the SyncKairos documentation and guides
 **If you're building SyncKairos:**
 
 1. **Start Here**: [project-tracking/PROJECT_PHASES.md](project-tracking/PROJECT_PHASES.md) - Get the 4-week roadmap
-2. **Review Tasks**: [project-tracking/TASK_TRACKING.md](project-tracking/TASK_TRACKING.md) - Detailed Phase 1 task breakdown
-3. **Begin Phase 1**: Start with [TASK_1.1_PROJECT_SETUP.md](project-tracking/tasks/TASK_1.1_PROJECT_SETUP.md)
-4. **Understand Dependencies**: [project-tracking/DEPENDENCIES.md](project-tracking/DEPENDENCIES.md) - Critical path
-5. **Reference Architecture**: [design/ARCHITECTURE.md](design/ARCHITECTURE.md) - Technical details
-6. **Reference Implementation**: [design/IMPLEMENTATION.md](design/IMPLEMENTATION.md) - Code examples
-7. **Track Progress**: Update checkboxes in task documents as you complete work
+2. **Review Architecture**: [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) - Technical details
+3. **API Contract**: Check the "API Contract - Single Source of Truth" section in ARCHITECTURE.md
+   - Zod schemas in `src/types/api-contracts.ts` are the source of truth
+   - Auto-generates: Runtime validation + TypeScript types + OpenAPI docs
+4. **Component APIs**: [components/](components/) - Internal component documentation
+5. **Track Progress**: [project-tracking/TASK_TRACKING.md](project-tracking/TASK_TRACKING.md) - Detailed task breakdown
 
 ### For Understanding (Design Review)
 
 **If you're learning about SyncKairos:**
 
-1. **Understand the Project**: Start with [design/OVERVIEW.md](design/OVERVIEW.md)
-2. **Review Tech Stack**: Check [design/TECH_STACK.md](design/TECH_STACK.md) for technology choices
-3. **Validate Alignment**: See [design/TECH_STACK_ALIGNMENT_REVIEW.md](design/TECH_STACK_ALIGNMENT_REVIEW.md) for validation
-4. **Review Architecture**: Check [design/ARCHITECTURE.md](design/ARCHITECTURE.md) for distributed-first design
-5. **Explore Use Cases**: See [design/USE_CASES.md](design/USE_CASES.md) for your scenario
-6. **Review API**: Check [design/API_REFERENCE.md](design/API_REFERENCE.md) for endpoints
-7. **Deployment**: Review [design/DEPLOYMENT.md](design/DEPLOYMENT.md) for production setup
-8. **Mobile Support**: Check [design/MOBILE_CONSIDERATIONS.md](design/MOBILE_CONSIDERATIONS.md) for mobile compatibility
+1. **Architecture Overview**: Start with [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)
+2. **Explore Use Cases**: See [guides/USE_CASES.md](guides/USE_CASES.md) for your scenario
+3. **Review API Contract**: Check the Zod schemas section in ARCHITECTURE.md
+4. **Deployment**: Review [guides/DEPLOYMENT.md](guides/DEPLOYMENT.md) for production setup
+5. **Mobile Support**: Check [guides/MOBILE_CONSIDERATIONS.md](guides/MOBILE_CONSIDERATIONS.md)
+
+### For API Integration
+
+**If you're integrating with SyncKairos:**
+
+1. **API Documentation**: Access the auto-generated OpenAPI spec at `/api/docs` (when server is running)
+2. **API Contract Source**: Review Zod schemas in `src/types/api-contracts.ts`
+3. **WebSocket Protocol**: Check [architecture/ADR/WEBSOCKET_API_ANALYSIS.md](architecture/ADR/WEBSOCKET_API_ANALYSIS.md)
+4. **Usage Examples**: See [guides/USE_CASES.md](guides/USE_CASES.md)
+
+### For Operations (DevOps)
+
+**If you're deploying SyncKairos:**
+
+1. **Infrastructure Setup**: [guides/INFRASTRUCTURE_SETUP.md](guides/INFRASTRUCTURE_SETUP.md) - Upstash Redis + Supabase PostgreSQL
+2. **Deployment Guide**: [guides/DEPLOYMENT.md](guides/DEPLOYMENT.md) - Fly.io deployment
+3. **Configuration**: [components/CONFIGURATION.md](components/CONFIGURATION.md) - Environment variables
+4. **Troubleshooting**: [guides/TROUBLESHOOTING.md](guides/TROUBLESHOOTING.md) - Common issues
 
 ### For v3.0 (Future - Deferred)
 
 **Note:** v3.0 architecture is deferred in favor of v2.0 fast time-to-market strategy.
 
-1. **Review v3.0 Proposal**: Read [design/v3/ARCHITECTURE_V3_PROPOSAL.md](design/v3/ARCHITECTURE_V3_PROPOSAL.md) for the extensible architecture
-2. **Critical Considerations**: Review [design/v3/ARCHITECTURE_V3_ADDENDUM.md](design/v3/ARCHITECTURE_V3_ADDENDUM.md) for additional design decisions
-3. **Compare Approaches**: See [design/v3/EXTENSIBILITY_REVIEW.md](design/v3/EXTENSIBILITY_REVIEW.md) for v2.0 limitations
-4. **Future Migration**: Use these documents when planning v3.0 migration after v2.0 launch
+1. **Review v3.0 Proposal**: Read [design/v3/ARCHITECTURE_V3_PROPOSAL.md](design/v3/ARCHITECTURE_V3_PROPOSAL.md)
+2. **Critical Considerations**: Review [design/v3/ARCHITECTURE_V3_ADDENDUM.md](design/v3/ARCHITECTURE_V3_ADDENDUM.md)
+3. **Compare Approaches**: See [design/v3/EXTENSIBILITY_REVIEW.md](design/v3/EXTENSIBILITY_REVIEW.md)
 
 ---
 
@@ -235,13 +175,19 @@ Designed for multiple instances from day one with:
 ### 3. Hot Path Optimization
 Critical operations (<50ms target) use Redis only, never PostgreSQL.
 
+### 4. API Contract - Single Source of Truth
+- **Zod schemas** (`src/types/api-contracts.ts`) are the source of truth
+- Auto-generates: Runtime validation + TypeScript types + OpenAPI docs
+- No manual API documentation - everything is generated from schemas
+- See [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) for details
+
 ---
 
 ## Documentation Version
 
 **Version:** 2.0
-**Last Updated:** 2025-10-21
-**Status:** Implementation Phase - Phase 1 Not Started
+**Last Updated:** 2025-10-24
+**Status:** Phase 4 - Deployment & Production
 
 ---
 
@@ -250,9 +196,9 @@ Critical operations (<50ms target) use Redis only, never PostgreSQL.
 | Phase | Status | Target |
 |-------|--------|--------|
 | Design | ✅ Complete | - |
-| Phase 1: Core Architecture | 🔴 Not Started | Week 1 |
-| Phase 2: Business Logic & API | ⚪ Pending | Week 2 |
-| Phase 3: Testing & Quality | ⚪ Pending | Week 3 |
-| Phase 4: Deployment | ⚪ Pending | Week 4 |
+| Phase 1: Core Architecture | ✅ Complete | Week 1 |
+| Phase 2: Business Logic & API | ✅ Complete | Week 2 |
+| Phase 3: Testing & Quality | ✅ Complete | Week 3 |
+| Phase 4: Deployment | 🟡 In Progress | Week 4 |
 
-**Next Step:** [Start Phase 1](project-tracking/phases/PHASE_1.md)
+**Current Phase:** Phase 4 - Deployment & Infrastructure Setup
