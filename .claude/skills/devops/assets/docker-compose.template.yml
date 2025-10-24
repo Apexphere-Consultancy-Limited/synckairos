@@ -11,7 +11,7 @@ version: '3.8'
 
 services:
   # =============================================================================
-  # SyncKairos Application
+  # SyncKairos Application (optional - for full containerized setup)
   # =============================================================================
   synckairos:
     build:
@@ -61,7 +61,8 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    # Recommended for development - use noeviction for state storage
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
 
   # =============================================================================
   # PostgreSQL - Audit Store
@@ -70,14 +71,15 @@ services:
     image: postgres:15-alpine
     container_name: synckairos-postgres
     ports:
-      - "5433:5432"  # Using 5433 to avoid conflict with local PostgreSQL
+      - "5433:5432"  # Using 5433 externally to avoid conflict with local PostgreSQL
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=synckairos
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d:ro
+      # Optionally mount migrations for auto-initialization
+      # - ./migrations:/docker-entrypoint-initdb.d:ro
     networks:
       - synckairos-network
     restart: unless-stopped

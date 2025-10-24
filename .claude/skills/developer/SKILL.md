@@ -32,6 +32,35 @@ This skill provides the complete development workflow for the SyncKairos project
 - **Testing**: Vitest
 - **Linting**: ESLint + Prettier
 - **Type Checking**: TypeScript compiler
+- **API Contracts**: Zod schemas with OpenAPI metadata (single source of truth)
+
+## API Contract Single Source of Truth
+
+⚠️ **CRITICAL**: SyncKairos uses **Zod schemas with OpenAPI metadata** as the single source of truth for ALL API contracts.
+
+**Key Files:**
+- **[src/types/api-contracts.ts](../../../src/types/api-contracts.ts)** - Zod schemas with OpenAPI metadata
+- **[src/api/openapi.ts](../../../src/api/openapi.ts)** - Auto-generated OpenAPI 3.1 document
+
+**What This Means:**
+1. ✅ **DO**: Update Zod schemas when changing APIs
+2. ❌ **DON'T**: Create manual API documentation (it will drift)
+3. ✅ **DO**: Use schemas for runtime validation in code
+4. ❌ **DON'T**: Skip contract tests when changing schemas
+
+**Architecture:**
+```
+Zod Schemas → Runtime Validation + TypeScript Types + OpenAPI Docs
+```
+
+When API changes:
+1. Update Zod schema in `src/types/api-contracts.ts`
+2. TypeScript types auto-update
+3. OpenAPI docs auto-generate
+4. Contract tests validate the change
+5. No manual docs needed!
+
+See [docs/design/ARCHITECTURE.md](../../../docs/design/ARCHITECTURE.md#api-contract---single-source-of-truth) for complete details.
 
 ## Pre-PR Validation Commands
 

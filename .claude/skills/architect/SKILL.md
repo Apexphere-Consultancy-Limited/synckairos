@@ -9,6 +9,8 @@ description: Architecture and code review skill for SyncKairos v2.0 development.
 
 Perform architectural reviews and code reviews for SyncKairos v2.0, ensuring all code follows the distributed-first, Redis-primary architecture with strict adherence to the 7 core design principles. Identify violations, suggest improvements, and validate performance targets.
 
+⚠️ **CRITICAL**: SyncKairos uses **Zod schemas with OpenAPI metadata** ([src/types/api-contracts.ts](../../../src/types/api-contracts.ts)) as the single source of truth for ALL API contracts. When reviewing API changes, ensure schemas are updated, not manual documentation. See [ARCHITECTURE.md](../../../docs/design/ARCHITECTURE.md#api-contract---single-source-of-truth) for details.
+
 ## When to Use This Skill
 
 Use this skill when:

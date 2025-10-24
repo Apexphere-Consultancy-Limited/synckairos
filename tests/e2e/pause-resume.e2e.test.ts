@@ -1,0 +1,134 @@
+/**
+ * E2E Test: Pause and Resume Operations
+ *
+ * Tags: @comprehensive @api
+ * Goal: Validate pause and resume functionality preserves time_remaining correctly
+ *
+ * Covered Endpoints:
+ * - POST /v1/sessions/:id/pause
+ * - POST /v1/sessions/:id/resume
+ */
+
+import { test, expect } from '@playwright/test'
+import { getEnvironment } from './setup/environments'
+import { SessionResponseSchema } from '../../src/types/api-contracts'
+
+const createdSessions: string[] = []
+
+test.afterEach(async ({ request }) => {
+  const env = getEnvironment()
+  for (const sessionId of createdSessions) {
+    try {
+      await request.delete(`${env.baseURL}/v1/sessions/${sessionId}`)
+      console.log(`🧹 Cleaned up session: ${sessionId}`)
+    } catch (error) {
+      console.warn(`⚠️ Cleanup failed for session: ${sessionId}`)
+    }
+  }
+  createdSessions.length = 0
+})
+
+test('pause and resume session @comprehensive @api', async ({ request }) => {
+  const env = getEnvironment()
+  const sessionId = `e2e-pause-${Date.now()}`
+  createdSessions.push(sessionId)
+
+  // Create and start session
+  await request.post(`${env.baseURL}/v1/sessions`, {
+    data: {
+      session_id: sessionId,
+      sync_mode: 'per_participant',
+      participants: [
+        { participant_id: 'p1', total_time_ms: 300000 },
+        { participant_id: 'p2', total_time_ms: 300000 }
+      ]
+    }
+  })
+
+  await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
+
+  // Wait 2 seconds then pause
+  await new Promise(resolve => setTimeout(resolve, 2000))
+
+  const pauseRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/pause`)
+  expect(pauseRes.status()).toBe(200)
+  const pausedJson = await pauseRes.json()
+
+  // Validate with Zod schema
+  const pausedResult = SessionResponseSchema.safeParse(pausedJson)
+  expect(pausedResult.success).toBe(true)
+
+  const pausedState = pausedResult.data!
+  expect(pausedState.status).toBe('paused')
+  const savedTimeRemaining = pausedState.time_remaining_ms
+
+  // Verify time_remaining is approximately 298000ms (300000 - 2000)
+  expect(savedTimeRemaining).toBeLessThan(300000)
+  expect(savedTimeRemaining).toBeGreaterThan(295000)
+
+  console.log(`✅ Paused with ${savedTimeRemaining}ms remaining`)
+
+  // Wait 1 second while paused
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
+  // Resume and verify time_remaining didn't change
+  const resumeRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/resume`)
+  expect(resumeRes.status()).toBe(200)
+  const resumedJson = await resumeRes.json()
+
+  // Validate with Zod schema
+  const resumedResult = SessionResponseSchema.safeParse(resumedJson)
+  expect(resumedResult.success).toBe(true)
+
+  const resumedState = resumedResult.data!
+  expect(resumedState.status).toBe('running')
+
+  // Time remaining should be approximately the same (±50ms tolerance)
+  expect(Math.abs(resumedState.time_remaining_ms - savedTimeRemaining)).toBeLessThan(50)
+
+  console.log(`✅ Resumed with ${resumedState.time_remaining_ms}ms remaining after 1s pause (±50ms tolerance met)`)
+
+  // Continue session to verify it works after resume
+  const switchRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/switch`)
+  expect(switchRes.status()).toBe(200)
+  const switchData = await switchRes.json()
+  expect(switchData.new_active_participant_id).toBe('p2')
+
+  console.log(`✅ Session continues normally after resume`)
+})
+
+test('pause during cycle transition @comprehensive', async ({ request }) => {
+  const env = getEnvironment()
+  const sessionId = `e2e-pause-transition-${Date.now()}`
+  createdSessions.push(sessionId)
+
+  await request.post(`${env.baseURL}/v1/sessions`, {
+    data: {
+      session_id: sessionId,
+      sync_mode: 'per_participant',
+      participants: [
+        { participant_id: 'p1', total_time_ms: 300000 },
+        { participant_id: 'p2', total_time_ms: 300000 }
+      ]
+    }
+  })
+
+  await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
+
+  // Fire switch and pause concurrently
+  const [switchRes, pauseRes] = await Promise.all([
+    request.post(`${env.baseURL}/v1/sessions/${sessionId}/switch`),
+    request.post(`${env.baseURL}/v1/sessions/${sessionId}/pause`)
+  ])
+
+  // Both should succeed or one should fail gracefully
+  expect([200, 409]).toContain(switchRes.status())
+  expect([200, 409]).toContain(pauseRes.status())
+
+  // Final state should be consistent
+  const getRes = await request.get(`${env.baseURL}/v1/sessions/${sessionId}`)
+  const state = await getRes.json()
+  expect(['running', 'paused']).toContain(state.status)
+
+  console.log(`✅ Concurrent pause/switch handled gracefully (final status: ${state.status})`)
+})

@@ -36,3 +36,4 @@ temp/
 # Skills (generated)
 .claude/skills/*.zip
 .env.production
+test-results/
