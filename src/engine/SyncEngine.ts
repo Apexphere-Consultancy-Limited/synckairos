@@ -462,6 +462,7 @@ export class SyncEngine {
     state.status = SyncStatus.COMPLETED
     state.session_completed_at = now
     state.cycle_started_at = null
+    state.active_participant_id = null
     state.participants.forEach(p => (p.is_active = false))
     state.updated_at = now
 

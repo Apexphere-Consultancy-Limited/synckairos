@@ -10,6 +10,7 @@
 
 import { test, expect } from '@playwright/test'
 import { getEnvironment } from './setup/environments'
+import { generateSessionId, createParticipant, createSessionPayload, TEST_PARTICIPANTS } from './test-utils'
 
 const createdSessions: string[] = []
 
@@ -28,16 +29,14 @@ test.afterEach(async ({ request }) => {
 
 test('delete session lifecycle @comprehensive @api', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-delete-${Date.now()}`
+  const sessionId = generateSessionId('e2e-delete')
   createdSessions.push(sessionId)
 
   // Create session
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [{ participant_id: 'p1', total_time_ms: 300000 }]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+    ])
   })
 
   // Delete session
@@ -62,15 +61,13 @@ test('delete session lifecycle @comprehensive @api', async ({ request }) => {
 
 test('delete running session @comprehensive', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-delete-running-${Date.now()}`
+  const sessionId = generateSessionId('e2e-delete-running')
   createdSessions.push(sessionId)
 
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [{ participant_id: 'p1', total_time_ms: 300000 }]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+    ])
   })
 
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
@@ -88,15 +85,13 @@ test('delete running session @comprehensive', async ({ request }) => {
 
 test('delete completed session @comprehensive', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-delete-completed-${Date.now()}`
+  const sessionId = generateSessionId('e2e-delete-completed')
   createdSessions.push(sessionId)
 
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [{ participant_id: 'p1', total_time_ms: 300000 }]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+    ])
   })
 
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
@@ -112,8 +107,9 @@ test('delete completed session @comprehensive', async ({ request }) => {
 test('delete non-existent session @comprehensive', async ({ request }) => {
   const env = getEnvironment()
 
-  // Try to delete non-existent session
-  const deleteRes = await request.delete(`${env.baseURL}/v1/sessions/nonexistent`)
+  // Try to delete non-existent session (use valid UUID that doesn't exist)
+  const nonExistentId = '00000000-0000-0000-0000-000000000000'
+  const deleteRes = await request.delete(`${env.baseURL}/v1/sessions/${nonExistentId}`)
   expect(deleteRes.status()).toBe(404)
   const errorData = await deleteRes.json()
   expect(errorData.error).toBeDefined()
