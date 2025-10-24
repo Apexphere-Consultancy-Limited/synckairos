@@ -1,5 +1,8 @@
 # SyncKairos v2.0
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=synckairos&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=synckairos)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=synckairos&metric=coverage)](https://sonarcloud.io/summary/new_code?id=synckairos)
+
 High-performance real-time synchronization service with distributed-first architecture.
 
 ## Features
@@ -76,6 +79,7 @@ See [Phase 1 Validation](docs/project-tracking/PHASE_1_VALIDATION.md)
 - [Testing](docs/guides/TESTING.md)
 - [Development](docs/guides/DEVELOPMENT.md)
 - [Troubleshooting](docs/guides/TROUBLESHOOTING.md)
+- [SonarQube Setup](docs/guides/SONARQUBE_SETUP.md)
 
 ## Performance
 
@@ -127,6 +131,8 @@ pnpm test:coverage         # With coverage report
 pnpm test:multi-instance   # Multi-instance validation
 pnpm lint                  # Check code style
 pnpm build                 # Production build
+pnpm sonar                 # Run SonarQube analysis (cloud)
+pnpm sonar:local           # Run SonarQube analysis (local)
 ```
 
 ### Infrastructure Management
