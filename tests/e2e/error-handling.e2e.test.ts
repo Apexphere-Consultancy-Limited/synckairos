@@ -13,7 +13,8 @@
 
 import { test, expect } from '@playwright/test'
 import { getEnvironment } from './setup/environments'
-import { ErrorResponseSchema } from '../../src/types/api-contracts'
+import { ErrorResponseSchema } from '../../src/api/schemas/session'
+import { generateSessionId, createParticipant, createSessionPayload, TEST_PARTICIPANTS } from './test-utils'
 
 const createdSessions: string[] = []
 
@@ -33,8 +34,9 @@ test.afterEach(async ({ request }) => {
 test('error handling @comprehensive @api', async ({ request }) => {
   const env = getEnvironment()
 
-  // Test 404 - Non-existent session
-  const notFoundRes = await request.post(`${env.baseURL}/v1/sessions/nonexistent/start`)
+  // Test 404 - Non-existent session (use valid UUID that doesn't exist)
+  const nonExistentId = '00000000-0000-0000-0000-000000000000'
+  const notFoundRes = await request.post(`${env.baseURL}/v1/sessions/${nonExistentId}/start`)
   expect(notFoundRes.status()).toBe(404)
   const notFoundJson = await notFoundRes.json()
 
@@ -48,17 +50,13 @@ test('error handling @comprehensive @api', async ({ request }) => {
   console.log(`✅ 404 error: ${notFoundData.error}`)
 
   // Test 400 - Invalid state transition (switch on pending session)
-  const sessionId = `e2e-error-${Date.now()}`
+  const sessionId = generateSessionId('e2e-error')
   createdSessions.push(sessionId)
 
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [
-        { participant_id: 'p1', total_time_ms: 300000 }
-      ]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+    ])
   })
 
   const badRequestRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/switch`)
@@ -91,8 +89,8 @@ test('error handling @comprehensive @api', async ({ request }) => {
 
   console.log(`✅ 409 conflict errors validated`)
 
-  // Test 404 - Delete non-existent session
-  const deleteNotFoundRes = await request.delete(`${env.baseURL}/v1/sessions/nonexistent`)
+  // Test 404 - Delete non-existent session (reuse nonExistentId)
+  const deleteNotFoundRes = await request.delete(`${env.baseURL}/v1/sessions/${nonExistentId}`)
   expect(deleteNotFoundRes.status()).toBe(404)
 
   // Test 400 - Invalid JSON
@@ -104,15 +102,13 @@ test('error handling @comprehensive @api', async ({ request }) => {
   console.log(`✅ All error scenarios validated`)
 
   // Test 404 - Operations on deleted session
-  const sessionId2 = `e2e-deleted-${Date.now()}`
+  const sessionId2 = generateSessionId('e2e-deleted')
   createdSessions.push(sessionId2)
 
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId2,
-      sync_mode: 'per_participant',
-      participants: [{ participant_id: 'p1', total_time_ms: 300000 }]
-    }
+    data: createSessionPayload(sessionId2, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+    ])
   })
   await request.delete(`${env.baseURL}/v1/sessions/${sessionId2}`)
 

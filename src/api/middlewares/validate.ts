@@ -31,9 +31,10 @@ export function validate(
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Determine which part of the request to validate
+      // For body validation, default undefined to {} to support optional bodies
       const data =
         target === 'body'
-          ? req.body
+          ? (req.body ?? {})
           : target === 'params'
             ? req.params
             : req.query

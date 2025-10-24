@@ -1,7 +1,7 @@
 # E2E Test Scenarios
 
-**Version:** 1.1
-**Last Updated:** 2025-10-24
+**Version:** 1.2
+**Last Updated:** 2025-10-24 (Updated after test fixes)
 **Framework:** Playwright
 
 ---
@@ -12,9 +12,19 @@ This document details the specific test scenarios for SyncKairos E2E testing. Ea
 
 **Coverage:** 12/12 API endpoints (100%)
 
+**⚠️ Important Note (2025-10-24):**
+The code examples in this document are **illustrative** and may be simplified for clarity. The actual test implementations in [tests/e2e/](../../tests/e2e/) use:
+- Valid UUID v4 format for all session_id and participant_id fields (e.g., `223e4567-e89b-12d3-a456-426614174001`)
+- Test utility functions from [test-utils.ts](../../tests/e2e/test-utils.ts)
+- Zod schema validation for response validation
+- Destructuring for better readability (`const { data: session } = result.data!`)
+
+For actual test implementation details, refer to the test files themselves.
+
 **See Also:**
 - [E2E Overview](./OVERVIEW.md) - Overall E2E testing strategy
 - [Test Execution](./EXECUTION.md) - How to run tests in different environments
+- [E2E Issues](./ISSUES.md) - Recent fixes and known issues
 
 ---
 
@@ -62,7 +72,7 @@ test('complete session lifecycle @critical @smoke', async ({ request }) => {
 
   expect(switchRes.status()).toBe(200)
   const switchData = await switchRes.json()
-  expect(switchData.new_active_participant_id).toBe('p2')
+  expect(switchData.active_participant_id).toBe('p2')  // Note: actual tests use UUID format
   expect(switchLatency).toBeLessThan(50) // Performance target: <50ms
 
   // 4. Complete session
@@ -242,9 +252,9 @@ test('multi-client sync @comprehensive @websocket', async ({ browser }) => {
   const switchEvent2 = messages2.find(m => m.type === 'participant_switched')
   const switchEvent3 = messages3.find(m => m.type === 'participant_switched')
 
-  expect(switchEvent1.new_active_participant_id).toBe('p2')
-  expect(switchEvent2.new_active_participant_id).toBe('p2')
-  expect(switchEvent3.new_active_participant_id).toBe('p2')
+  expect(switchEvent1.active_participant_id).toBe('p2')  // Note: actual tests use UUID format
+  expect(switchEvent2.active_participant_id).toBe('p2')
+  expect(switchEvent3.active_participant_id).toBe('p2')
 
   // Cleanup
   await page1.evaluate(() => window.ws.close())
@@ -548,7 +558,7 @@ test('single participant session @comprehensive', async ({ request }) => {
   const switchRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/switch`)
   expect(switchRes.status()).toBe(200)
   const switchData = await switchRes.json()
-  expect(switchData.new_active_participant_id).toBe('p1')
+  expect(switchData.active_participant_id).toBe('p1')  // Note: actual tests use UUID format
 })
 
 test('session with 100 participants @comprehensive', async ({ request }) => {
@@ -778,7 +788,7 @@ test('pause and resume session @comprehensive @api', async ({ request }) => {
   // Continue session to verify it works after resume
   const switchRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/switch`)
   expect(switchRes.status()).toBe(200)
-  expect(switchRes.json().then(data => data.new_active_participant_id)).resolves.toBe('p2')
+  expect(switchRes.json().then(data => data.active_participant_id)).resolves.toBe('p2')  // Note: actual tests use UUID format
 })
 
 test('pause during cycle transition @comprehensive', async ({ request }) => {
