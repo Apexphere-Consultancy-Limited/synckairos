@@ -10,7 +10,7 @@
     "start": "node dist/index.js",
     "migrate": "tsx scripts/run-migrations.ts",
     "test": "vitest",
-    "test:coverage": "vitest --coverage",
+    "test:coverage": "vitest run --coverage",
     "test:unit": "vitest tests/unit",
     "test:integration": "vitest tests/integration",
     "test:multi-instance": "tsx scripts/multi-instance-test.ts",
