@@ -11,7 +11,8 @@
 
 import { test, expect } from '@playwright/test'
 import { getEnvironment } from './setup/environments'
-import { SessionResponseSchema } from '../../src/types/api-contracts'
+import { SessionResponseSchema } from '../../src/api/schemas/session'
+import { generateSessionId, createParticipant, createSessionPayload, TEST_PARTICIPANTS } from './test-utils'
 
 const createdSessions: string[] = []
 
@@ -30,19 +31,15 @@ test.afterEach(async ({ request }) => {
 
 test('pause and resume session @comprehensive @api', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-pause-${Date.now()}`
+  const sessionId = generateSessionId('e2e-pause')
   createdSessions.push(sessionId)
 
   // Create and start session
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [
-        { participant_id: 'p1', total_time_ms: 300000 },
-        { participant_id: 'p2', total_time_ms: 300000 }
-      ]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+      createParticipant(TEST_PARTICIPANTS.P2, 1, 300000),
+    ])
   })
 
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
@@ -58,7 +55,7 @@ test('pause and resume session @comprehensive @api', async ({ request }) => {
   const pausedResult = SessionResponseSchema.safeParse(pausedJson)
   expect(pausedResult.success).toBe(true)
 
-  const pausedState = pausedResult.data!
+  const { data: pausedState } = pausedResult.data!
   expect(pausedState.status).toBe('paused')
   const savedTimeRemaining = pausedState.time_remaining_ms
 
@@ -80,7 +77,7 @@ test('pause and resume session @comprehensive @api', async ({ request }) => {
   const resumedResult = SessionResponseSchema.safeParse(resumedJson)
   expect(resumedResult.success).toBe(true)
 
-  const resumedState = resumedResult.data!
+  const { data: resumedState } = resumedResult.data!
   expect(resumedState.status).toBe('running')
 
   // Time remaining should be approximately the same (±50ms tolerance)
@@ -92,25 +89,21 @@ test('pause and resume session @comprehensive @api', async ({ request }) => {
   const switchRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/switch`)
   expect(switchRes.status()).toBe(200)
   const switchData = await switchRes.json()
-  expect(switchData.new_active_participant_id).toBe('p2')
+  expect(switchData.new_active_participant_id).toBe(TEST_PARTICIPANTS.P2)
 
   console.log(`✅ Session continues normally after resume`)
 })
 
 test('pause during cycle transition @comprehensive', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-pause-transition-${Date.now()}`
+  const sessionId = generateSessionId('e2e-pause-transition')
   createdSessions.push(sessionId)
 
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [
-        { participant_id: 'p1', total_time_ms: 300000 },
-        { participant_id: 'p2', total_time_ms: 300000 }
-      ]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+      createParticipant(TEST_PARTICIPANTS.P2, 1, 300000),
+    ])
   })
 
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)

@@ -1,95 +1,61 @@
 /**
- * OpenAPI Document Generator
+ * OpenAPI Documentation Generator
  *
- * Auto-generates OpenAPI 3.1 documentation from Zod schemas.
- * Single source of truth: Zod schemas in api-contracts.ts
+ * Single source of truth: Zod schemas -> OpenAPI spec -> Swagger UI
  *
- * Usage:
- * - Serves interactive Swagger UI at /api-docs
- * - OpenAPI JSON available at /api-docs/openapi.json
- * - Auto-updates when schemas change (no manual sync needed)
+ * This file:
+ * - Registers all Zod schemas from session.ts
+ * - Defines all API routes with their request/response schemas
+ * - Generates OpenAPI 3.0 specification
+ * - Exports the spec for Swagger UI
  */
 
-import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
+import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi'
+import { z } from 'zod'
 import {
-  // Core schemas
-  SyncStateSchema,
-  SyncParticipantSchema,
-  SyncModeSchema,
-  SyncStatusSchema,
-  // WebSocket messages
-  ServerMessageSchema,
-  WSConnectedMessageSchema,
-  WSStateUpdateMessageSchema,
-  WSStateSyncMessageSchema,
-  WSSessionDeletedMessageSchema,
-  WSPongMessageSchema,
-  WSErrorMessageSchema,
-  ClientMessageSchema,
-  WSPingMessageSchema,
-  WSRequestSyncMessageSchema,
-  // REST API
-  CreateSessionRequestSchema,
-  SwitchCycleRequestSchema,
+  CreateSessionSchema,
+  SwitchCycleSchema,
+  SessionIdParamSchema,
+  EmptyBodySchema,
   SessionResponseSchema,
   SwitchCycleResponseSchema,
   ErrorResponseSchema,
   HealthResponseSchema,
-} from '@/types/api-contracts'
+} from './schemas/session'
 
 // Create OpenAPI registry
 const registry = new OpenAPIRegistry()
 
 // ============================================================================
-// Register Core Schemas
+// Register Schemas (Components)
 // ============================================================================
 
-registry.register('SyncMode', SyncModeSchema)
-registry.register('SyncStatus', SyncStatusSchema)
-registry.register('SyncParticipant', SyncParticipantSchema)
-registry.register('SyncState', SyncStateSchema)
+// Register request schemas
+registry.register('CreateSessionRequest', CreateSessionSchema)
+registry.register('SwitchCycleRequest', SwitchCycleSchema)
+registry.register('SessionIdParam', SessionIdParamSchema)
+registry.register('EmptyBody', EmptyBodySchema)
 
-// ============================================================================
-// Register WebSocket Schemas
-// ============================================================================
-
-registry.register('ServerMessage', ServerMessageSchema)
-registry.register('WSConnectedMessage', WSConnectedMessageSchema)
-registry.register('WSStateUpdateMessage', WSStateUpdateMessageSchema)
-registry.register('WSStateSyncMessage', WSStateSyncMessageSchema)
-registry.register('WSSessionDeletedMessage', WSSessionDeletedMessageSchema)
-registry.register('WSPongMessage', WSPongMessageSchema)
-registry.register('WSErrorMessage', WSErrorMessageSchema)
-
-registry.register('ClientMessage', ClientMessageSchema)
-registry.register('WSPingMessage', WSPingMessageSchema)
-registry.register('WSRequestSyncMessage', WSRequestSyncMessageSchema)
-
-// ============================================================================
-// Register REST API Schemas
-// ============================================================================
-
-registry.register('CreateSessionRequest', CreateSessionRequestSchema)
-registry.register('SwitchCycleRequest', SwitchCycleRequestSchema)
+// Register response schemas (all imported from session.ts)
 registry.register('SessionResponse', SessionResponseSchema)
 registry.register('SwitchCycleResponse', SwitchCycleResponseSchema)
 registry.register('ErrorResponse', ErrorResponseSchema)
 registry.register('HealthResponse', HealthResponseSchema)
 
 // ============================================================================
-// Register REST API Endpoints
+// Register Routes (Paths)
 // ============================================================================
 
-// Health check
+// Health Endpoints
 registry.registerPath({
   method: 'get',
   path: '/health',
-  summary: 'Health check endpoint',
-  description: 'Returns server health status and infrastructure services status',
+  summary: 'Basic health check',
+  description: 'Always returns 200 OK if the server is running. Used for liveness probes.',
   tags: ['Health'],
   responses: {
     200: {
-      description: 'Server is healthy',
+      description: 'Server is running',
       content: {
         'application/json': {
           schema: HealthResponseSchema,
@@ -99,18 +65,72 @@ registry.registerPath({
   },
 })
 
-// Create session
+registry.registerPath({
+  method: 'get',
+  path: '/ready',
+  summary: 'Readiness check',
+  description: 'Checks Redis and PostgreSQL connections. Used for readiness probes.',
+  tags: ['Health'],
+  responses: {
+    200: {
+      description: 'Server is ready',
+      content: {
+        'application/json': {
+          schema: z.object({
+            status: z.literal('ready'),
+          }),
+        },
+      },
+    },
+    503: {
+      description: 'Server is not ready',
+      content: {
+        'application/json': {
+          schema: z.object({
+            status: z.literal('not_ready'),
+            error: z.string(),
+          }),
+        },
+      },
+    },
+  },
+})
+
+// Time Endpoint
+registry.registerPath({
+  method: 'get',
+  path: '/v1/time',
+  summary: 'Server time synchronization',
+  description: 'Returns current server timestamp for client time synchronization.',
+  tags: ['Time'],
+  responses: {
+    200: {
+      description: 'Server timestamp',
+      content: {
+        'application/json': {
+          schema: z.object({
+            timestamp_ms: z.number().openapi({ example: 1704067200000 }),
+            server_version: z.string().openapi({ example: '2.0.0' }),
+            drift_tolerance_ms: z.number().openapi({ example: 50 }),
+          }),
+        },
+      },
+    },
+  },
+})
+
+// Session Endpoints
 registry.registerPath({
   method: 'post',
   path: '/v1/sessions',
-  summary: 'Create a new session',
-  description: 'Creates a new synchronization session with participants and timing configuration',
+  summary: 'Create new session',
+  description: 'Creates a new synchronization session with participants and time allocation.',
   tags: ['Sessions'],
   request: {
     body: {
       content: {
         'application/json': {
-          schema: CreateSessionRequestSchema,
+          schema: CreateSessionSchema,
         },
       },
     },
@@ -125,15 +145,7 @@ registry.registerPath({
       },
     },
     400: {
-      description: 'Invalid request body',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
-    },
-    409: {
-      description: 'Session ID already exists',
+      description: 'Invalid request',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
@@ -143,28 +155,18 @@ registry.registerPath({
   },
 })
 
-// Get session
 registry.registerPath({
   method: 'get',
   path: '/v1/sessions/{id}',
   summary: 'Get session state',
-  description: 'Returns current session state. Clients calculate remaining time from timestamps.',
+  description: 'Returns current session state.',
   tags: ['Sessions'],
   request: {
-    params: registry.registerComponent('parameters', 'SessionId', {
-      in: 'path',
-      name: 'id',
-      required: true,
-      schema: {
-        type: 'string',
-        description: 'Session ID',
-        example: 'debate-001',
-      },
-    }),
+    params: SessionIdParamSchema,
   },
   responses: {
     200: {
-      description: 'Session state retrieved successfully',
+      description: 'Session state retrieved',
       content: {
         'application/json': {
           schema: SessionResponseSchema,
@@ -182,37 +184,21 @@ registry.registerPath({
   },
 })
 
-// Start session
 registry.registerPath({
   method: 'post',
   path: '/v1/sessions/{id}/start',
   summary: 'Start session',
-  description: 'Transitions session from PENDING to RUNNING. Broadcasts STATE_UPDATE to all WebSocket clients.',
+  description: 'Transitions session from PENDING to RUNNING.',
   tags: ['Sessions'],
   request: {
-    params: registry.registerComponent('parameters', 'SessionId', {
-      in: 'path',
-      name: 'id',
-      required: true,
-      schema: {
-        type: 'string',
-      },
-    }),
+    params: SessionIdParamSchema,
   },
   responses: {
     200: {
-      description: 'Session started successfully',
+      description: 'Session started',
       content: {
         'application/json': {
           schema: SessionResponseSchema,
-        },
-      },
-    },
-    400: {
-      description: 'Session already started',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
         },
       },
     },
@@ -227,26 +213,19 @@ registry.registerPath({
   },
 })
 
-// Switch cycle (HOT PATH)
 registry.registerPath({
   method: 'post',
   path: '/v1/sessions/{id}/switch',
-  summary: 'Switch to next participant (HOT PATH)',
-  description: 'Switches to next participant. Target latency: <50ms (typical: 3-5ms). Broadcasts STATE_UPDATE.',
+  summary: 'Switch cycle (HOT PATH)',
+  description:
+    'Switches to next participant. Target latency: <50ms. This is the hot path for real-time synchronization.',
   tags: ['Sessions'],
   request: {
-    params: registry.registerComponent('parameters', 'SessionId', {
-      in: 'path',
-      name: 'id',
-      required: true,
-      schema: {
-        type: 'string',
-      },
-    }),
+    params: SessionIdParamSchema,
     body: {
       content: {
         'application/json': {
-          schema: SwitchCycleRequestSchema,
+          schema: SwitchCycleSchema,
         },
       },
     },
@@ -260,24 +239,8 @@ registry.registerPath({
         },
       },
     },
-    400: {
-      description: 'Session not running',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
-    },
     404: {
       description: 'Session not found',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
-    },
-    409: {
-      description: 'Optimistic locking conflict (version mismatch)',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
@@ -285,7 +248,7 @@ registry.registerPath({
       },
     },
     429: {
-      description: 'Rate limit exceeded (100 req/min)',
+      description: 'Rate limit exceeded',
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
@@ -295,37 +258,21 @@ registry.registerPath({
   },
 })
 
-// Pause session
 registry.registerPath({
   method: 'post',
   path: '/v1/sessions/{id}/pause',
   summary: 'Pause session',
-  description: 'Pauses running session. Saves current time. Broadcasts STATE_UPDATE.',
+  description: 'Saves current time and transitions to PAUSED state.',
   tags: ['Sessions'],
   request: {
-    params: registry.registerComponent('parameters', 'SessionId', {
-      in: 'path',
-      name: 'id',
-      required: true,
-      schema: {
-        type: 'string',
-      },
-    }),
+    params: SessionIdParamSchema,
   },
   responses: {
     200: {
-      description: 'Session paused successfully',
+      description: 'Session paused',
       content: {
         'application/json': {
           schema: SessionResponseSchema,
-        },
-      },
-    },
-    400: {
-      description: 'Session not running',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
         },
       },
     },
@@ -340,37 +287,21 @@ registry.registerPath({
   },
 })
 
-// Resume session
 registry.registerPath({
   method: 'post',
   path: '/v1/sessions/{id}/resume',
   summary: 'Resume session',
-  description: 'Resumes paused session. Restarts cycle timer. Broadcasts STATE_UPDATE.',
+  description: 'Transitions from PAUSED to RUNNING.',
   tags: ['Sessions'],
   request: {
-    params: registry.registerComponent('parameters', 'SessionId', {
-      in: 'path',
-      name: 'id',
-      required: true,
-      schema: {
-        type: 'string',
-      },
-    }),
+    params: SessionIdParamSchema,
   },
   responses: {
     200: {
-      description: 'Session resumed successfully',
+      description: 'Session resumed',
       content: {
         'application/json': {
           schema: SessionResponseSchema,
-        },
-      },
-    },
-    400: {
-      description: 'Session not paused',
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
         },
       },
     },
@@ -385,26 +316,18 @@ registry.registerPath({
   },
 })
 
-// Complete session
 registry.registerPath({
   method: 'post',
   path: '/v1/sessions/{id}/complete',
   summary: 'Complete session',
-  description: 'Marks session as completed. Deactivates all participants. Broadcasts STATE_UPDATE.',
+  description: 'Marks session as COMPLETED.',
   tags: ['Sessions'],
   request: {
-    params: registry.registerComponent('parameters', 'SessionId', {
-      in: 'path',
-      name: 'id',
-      required: true,
-      schema: {
-        type: 'string',
-      },
-    }),
+    params: SessionIdParamSchema,
   },
   responses: {
     200: {
-      description: 'Session completed successfully',
+      description: 'Session completed',
       content: {
         'application/json': {
           schema: SessionResponseSchema,
@@ -422,22 +345,14 @@ registry.registerPath({
   },
 })
 
-// Delete session
 registry.registerPath({
   method: 'delete',
   path: '/v1/sessions/{id}',
   summary: 'Delete session',
-  description: 'Removes session from Redis. Sends SESSION_DELETED to WebSocket clients.',
+  description: 'Removes session from Redis and triggers Pub/Sub broadcast.',
   tags: ['Sessions'],
   request: {
-    params: registry.registerComponent('parameters', 'SessionId', {
-      in: 'path',
-      name: 'id',
-      required: true,
-      schema: {
-        type: 'string',
-      },
-    }),
+    params: SessionIdParamSchema,
   },
   responses: {
     204: {
@@ -458,83 +373,65 @@ registry.registerPath({
 // Generate OpenAPI Document
 // ============================================================================
 
-const generator = new OpenApiGeneratorV31(registry.definitions)
+const generator = new OpenApiGeneratorV3(registry.definitions)
 
-export const openapiDocument = generator.generateDocument({
-  openapi: '3.1.0',
+export const openApiDocument = generator.generateDocument({
+  openapi: '3.0.3',
   info: {
     title: 'SyncKairos API',
     version: '2.0.0',
     description: `
-# SyncKairos API Documentation
+# SyncKairos v2.0 - Real-time Synchronization Service
 
-**Architecture:** STATE_UPDATE Based Real-Time Synchronization
+High-performance distributed synchronization service with Redis-first architecture.
 
-SyncKairos uses a state synchronization architecture where clients receive the complete session state on every update. This follows the "Calculate, Don't Count" principle and enables distributed-first design with Redis Pub/Sub.
+## Features
 
-## Key Principles
+- **Sub-millisecond Operations**: <1ms average latency
+- **Truly Stateless**: Any instance can serve any request
+- **Horizontal Scaling**: Add instances without configuration
+- **Multi-Instance Ready**: Redis Pub/Sub for cross-instance sync
 
-1. **Calculate, Don't Count**: Clients receive authoritative server timestamps and calculate remaining time locally
-2. **Full State Updates**: Every change broadcasts the complete \`SyncState\` (not granular events)
-3. **Distributed-First**: Stateless instances with Redis Pub/Sub for cross-instance broadcasting
-4. **Reconnection Resilient**: \`STATE_SYNC\` provides current state on reconnection
+## Performance
 
-## WebSocket Protocol
+- \`getSession()\`: <3ms (achieved: 0.25ms)
+- \`updateSession()\`: <5ms (achieved: 0.46ms)
+- \`switchCycle()\`: <50ms (achieved: 3-5ms)
+- Pub/Sub: <2ms (achieved: 0.19ms)
 
-Connect to: \`ws://<host>:<port>/ws?sessionId=<session_id>\`
+## WebSocket API
 
-**Server Messages:**
-- \`CONNECTED\`: Sent on connection
-- \`STATE_UPDATE\`: Sent on every state change (start, switch, pause, resume, complete)
-- \`STATE_SYNC\`: Sent on reconnection or REQUEST_SYNC
-- \`SESSION_DELETED\`: Sent when session is deleted
-- \`PONG\`: Response to PING
-- \`ERROR\`: Error occurred
-
-**Client Messages:**
-- \`PING\`: Keep-alive
-- \`REQUEST_SYNC\`: Request current state
-
-## Performance Targets
-
-- **switchCycle**: <50ms (typical: 3-5ms)
-- **WebSocket Broadcast**: <100ms
-- **STATE_UPDATE Size**: ~15-20 KB for 10 participants
-
-## Rate Limiting
-
-- **Global**: 100 requests per minute per IP
-- **switchCycle**: 100 requests per minute (HOT PATH protection)
-
-## References
-
-- [Complete WebSocket Protocol Documentation](https://github.com/synckairos/synckairos/blob/main/docs/api/WEBSOCKET.md)
-- [Architecture Design](https://github.com/synckairos/synckairos/blob/main/docs/design/ARCHITECTURE.md)
-- [First Principles Analysis](https://github.com/synckairos/synckairos/blob/main/docs/design/WEBSOCKET_API_ANALYSIS.md)
+Connect to \`ws://host:port/ws?sessionId={id}\` to receive real-time updates.
     `.trim(),
     contact: {
-      name: 'SyncKairos Team',
-      url: 'https://github.com/synckairos/synckairos',
+      name: 'SyncKairos',
     },
     license: {
-      name: 'MIT',
-      url: 'https://opensource.org/licenses/MIT',
+      name: 'ISC',
     },
   },
   servers: [
     {
       url: 'http://localhost:3000',
-      description: 'Local development server',
+      description: 'Local development',
     },
     {
-      url: 'https://api.synckairos.com',
-      description: 'Production server',
+      url: 'https://synckairos-staging.fly.dev',
+      description: 'Staging environment',
+    },
+    {
+      url: 'https://synckairos-production.fly.dev',
+      description: 'Production environment',
     },
   ],
   tags: [
     {
       name: 'Health',
-      description: 'Health check endpoints for monitoring',
+      description: 'Health and readiness checks',
+    },
+    {
+      name: 'Time',
+      description: 'Server time synchronization',
     },
     {
       name: 'Sessions',

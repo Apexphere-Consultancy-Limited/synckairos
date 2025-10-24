@@ -9,7 +9,7 @@ description: Project management skill for SyncKairos development. Use this skill
 
 Provide project management support for SyncKairos development, including sprint planning, task breakdown, dependency tracking, progress monitoring, and technical debt management. This skill has deep knowledge of the SyncKairos v2.0 architecture (Redis-first, distributed-first design) and the 4-week implementation roadmap.
 
-ℹ️ **Note**: SyncKairos uses **Zod schemas with OpenAPI metadata** ([src/types/api-contracts.ts](../../../src/types/api-contracts.ts)) as the single source of truth for API contracts. When planning API-related tasks, remember that documentation auto-generates from schemas. See [ARCHITECTURE.md](../../../docs/design/ARCHITECTURE.md#api-contract---single-source-of-truth).
+ℹ️ **Note**: SyncKairos uses **Zod schemas with OpenAPI metadata** ([src/api/schemas/session.ts](../../../src/api/schemas/session.ts)) as the single source of truth for API contracts. When planning API-related tasks, remember that documentation auto-generates from schemas and is served at `/api-docs` (Swagger UI). See [ARCHITECTURE.md](../../../docs/design/ARCHITECTURE.md#api-contract---single-source-of-truth).
 
 ## Core Capabilities
 

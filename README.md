@@ -58,10 +58,18 @@ See [Phase 1 Validation](docs/project-tracking/PHASE_1_VALIDATION.md)
 - [Data Flow](docs/architecture/DATA_FLOW.md)
 - [Design Decisions](docs/architecture/DESIGN_DECISIONS.md)
 
-### API Reference
-- [RedisStateManager](docs/api/RedisStateManager.md)
-- [DBWriteQueue](docs/api/DBWriteQueue.md)
-- [Configuration](docs/api/CONFIGURATION.md)
+### API Documentation
+- **Interactive API Docs**: Visit `/api-docs` when server is running
+  - Try out endpoints directly in the browser
+  - View request/response schemas with examples
+  - Auto-generated from Zod schemas (single source of truth)
+- **OpenAPI Spec**: Available at `/api-docs.json`
+- **Schema Source**: `src/api/schemas/session.ts`
+
+### Component Reference
+- [RedisStateManager](docs/components/RedisStateManager.md)
+- [DBWriteQueue](docs/components/DBWriteQueue.md)
+- [Configuration](docs/components/CONFIGURATION.md)
 
 ### Guides
 - [Deployment](docs/guides/DEPLOYMENT.md)
@@ -90,6 +98,14 @@ See [Phase 1 Validation](docs/project-tracking/PHASE_1_VALIDATION.md)
 
 ```
 src/
+├── api/          # REST API & documentation
+│   ├── routes/   # Express routes
+│   ├── schemas/  # Zod validation schemas (source of truth)
+│   ├── middlewares/  # Express middlewares
+│   ├── openapi.ts    # OpenAPI spec generator
+│   └── app.ts    # Express app factory
+├── engine/       # SyncEngine business logic
+├── websocket/    # WebSocket server
 ├── config/       # Redis, PostgreSQL configuration
 ├── state/        # RedisStateManager, DBWriteQueue
 ├── types/        # TypeScript types

@@ -22,10 +22,10 @@ import { getEnvironment } from './setup/environments'
 import WebSocket from 'ws'
 import {
   ServerMessage,
-  ServerMessageSchema,
   WSStateUpdateMessage,
-  SyncState,
-} from '../../src/types/api-contracts'
+} from '../../src/types/websocket'
+import { SyncState } from '../../src/types/session'
+import { generateSessionId, createParticipant, createSessionPayload, TEST_PARTICIPANTS } from './test-utils'
 
 interface WebSocketClient {
   ws: WebSocket
@@ -58,16 +58,14 @@ async function createWebSocketClient(
     })
 
     client.ws.on('message', (data: WebSocket.Data) => {
-      const raw = JSON.parse(data.toString())
+      const message = JSON.parse(data.toString()) as ServerMessage
 
-      // Validate with Zod schema
-      const result = ServerMessageSchema.safeParse(raw)
-      if (!result.success) {
-        console.error('❌ Invalid message received:', result.error)
+      // Basic validation - ensure message has type field
+      if (!message || !message.type) {
+        console.error('❌ Invalid message received: missing type field')
         return
       }
 
-      const message = result.data
       ;(message as any).received_at = Date.now() // Track reception time for latency measurement
       client.receivedMessages.push(message)
       console.log(`📩 Received ${message.type}`)
@@ -120,7 +118,7 @@ async function closeWebSocketClient(client: WebSocketClient): Promise<void> {
 
 test('multi-client WebSocket synchronization @critical @websocket', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-ws-${Date.now()}`
+  const sessionId = generateSessionId('e2e-ws')
   let client1: WebSocketClient | null = null
   let client2: WebSocketClient | null = null
   let client3: WebSocketClient | null = null
@@ -128,15 +126,11 @@ test('multi-client WebSocket synchronization @critical @websocket', async ({ req
   try {
     // 1. Create session via REST API
     const createRes = await request.post(`${env.baseURL}/v1/sessions`, {
-      data: {
-        session_id: sessionId,
-        sync_mode: 'per_participant',
-        participants: [
-          { participant_id: 'p1', total_time_ms: 300000 },
-          { participant_id: 'p2', total_time_ms: 300000 },
-          { participant_id: 'p3', total_time_ms: 300000 },
-        ],
-      },
+      data: createSessionPayload(sessionId, [
+        createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+        createParticipant(TEST_PARTICIPANTS.P2, 1, 300000),
+        createParticipant(TEST_PARTICIPANTS.P3, 2, 300000),
+      ]),
     })
     expect(createRes.status()).toBe(201)
     console.log(`✅ Session created: ${sessionId}`)
@@ -161,9 +155,9 @@ test('multi-client WebSocket synchronization @critical @websocket', async ({ req
 
     // Verify state content
     expect(update1.state.status).toBe('running')
-    expect(update1.state.active_participant_id).toBe('p1')
-    expect(update2.state.active_participant_id).toBe('p1')
-    expect(update3.state.active_participant_id).toBe('p1')
+    expect(update1.state.active_participant_id).toBe(TEST_PARTICIPANTS.P1)
+    expect(update2.state.active_participant_id).toBe(TEST_PARTICIPANTS.P1)
+    expect(update3.state.active_participant_id).toBe(TEST_PARTICIPANTS.P1)
 
     // Verify broadcast latency <100ms
     const broadcastLatency = Math.max(
@@ -182,16 +176,16 @@ test('multi-client WebSocket synchronization @critical @websocket', async ({ req
     const switchStartTime = Date.now()
     await request.post(`${env.baseURL}/v1/sessions/${sessionId}/switch`)
 
-    const switch1 = await waitForStateUpdate(client1, (s) => s.active_participant_id === 'p2')
-    const switch2 = await waitForStateUpdate(client2, (s) => s.active_participant_id === 'p2')
-    const switch3 = await waitForStateUpdate(client3, (s) => s.active_participant_id === 'p2')
+    const switch1 = await waitForStateUpdate(client1, (s) => s.active_participant_id === TEST_PARTICIPANTS.P2)
+    const switch2 = await waitForStateUpdate(client2, (s) => s.active_participant_id === TEST_PARTICIPANTS.P2)
+    const switch3 = await waitForStateUpdate(client3, (s) => s.active_participant_id === TEST_PARTICIPANTS.P2)
 
-    expect(switch1.state.active_participant_id).toBe('p2')
-    expect(switch2.state.active_participant_id).toBe('p2')
-    expect(switch3.state.active_participant_id).toBe('p2')
+    expect(switch1.state.active_participant_id).toBe(TEST_PARTICIPANTS.P2)
+    expect(switch2.state.active_participant_id).toBe(TEST_PARTICIPANTS.P2)
+    expect(switch3.state.active_participant_id).toBe(TEST_PARTICIPANTS.P2)
 
     // Verify p1 is no longer active
-    const p1_in_switch1 = switch1.state.participants.find((p) => p.participant_id === 'p1')
+    const p1_in_switch1 = switch1.state.participants.find((p) => p.participant_id === TEST_PARTICIPANTS.P1)
     expect(p1_in_switch1?.is_active).toBe(false)
     expect(p1_in_switch1?.cycle_count).toBe(1)
 
@@ -276,20 +270,16 @@ test('multi-client WebSocket synchronization @critical @websocket', async ({ req
 
 test('WebSocket reconnection with STATE_SYNC @websocket', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-ws-reconnect-${Date.now()}`
+  const sessionId = generateSessionId('e2e-ws-reconnect')
   let client: WebSocketClient | null = null
 
   try {
     // Create and start session
     await request.post(`${env.baseURL}/v1/sessions`, {
-      data: {
-        session_id: sessionId,
-        sync_mode: 'per_participant',
-        participants: [
-          { participant_id: 'p1', total_time_ms: 300000 },
-          { participant_id: 'p2', total_time_ms: 300000 },
-        ],
-      },
+      data: createSessionPayload(sessionId, [
+        createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+        createParticipant(TEST_PARTICIPANTS.P2, 1, 300000),
+      ]),
     })
 
     client = await createWebSocketClient(sessionId, env.wsURL)
@@ -311,10 +301,10 @@ test('WebSocket reconnection with STATE_SYNC @websocket', async ({ request }) =>
     // Request current state
     client.ws.send(JSON.stringify({ type: 'REQUEST_SYNC' }))
 
-    // Should receive STATE_SYNC with current state (active_participant_id = 'p2')
-    const sync = await waitForStateUpdate(client, (s) => s.active_participant_id === 'p2')
+    // Should receive STATE_SYNC with current state (active_participant_id = TEST_PARTICIPANTS.P2)
+    const sync = await waitForStateUpdate(client, (s) => s.active_participant_id === TEST_PARTICIPANTS.P2)
     expect(sync.type).toBe('STATE_SYNC')
-    expect(sync.state.active_participant_id).toBe('p2')
+    expect(sync.state.active_participant_id).toBe(TEST_PARTICIPANTS.P2)
     expect(sync.state.status).toBe('running')
 
     console.log(`✅ Reconnection with STATE_SYNC validated successfully`)

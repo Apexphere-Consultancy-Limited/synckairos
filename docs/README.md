@@ -117,7 +117,7 @@ This document provides a complete map of the SyncKairos documentation and guides
 1. **Start Here**: [project-tracking/PROJECT_PHASES.md](project-tracking/PROJECT_PHASES.md) - Get the 4-week roadmap
 2. **Review Architecture**: [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) - Technical details
 3. **API Contract**: Check the "API Contract - Single Source of Truth" section in ARCHITECTURE.md
-   - Zod schemas in `src/types/api-contracts.ts` are the source of truth
+   - Zod schemas in `src/api/schemas/session.ts` are the source of truth
    - Auto-generates: Runtime validation + TypeScript types + OpenAPI docs
 4. **Component APIs**: [components/](components/) - Internal component documentation
 5. **Track Progress**: [project-tracking/TASK_TRACKING.md](project-tracking/TASK_TRACKING.md) - Detailed task breakdown
@@ -136,10 +136,12 @@ This document provides a complete map of the SyncKairos documentation and guides
 
 **If you're integrating with SyncKairos:**
 
-1. **API Documentation**: Access the auto-generated OpenAPI spec at `/api/docs` (when server is running)
-2. **API Contract Source**: Review Zod schemas in `src/types/api-contracts.ts`
-3. **WebSocket Protocol**: Check [architecture/ADR/WEBSOCKET_API_ANALYSIS.md](architecture/ADR/WEBSOCKET_API_ANALYSIS.md)
-4. **Usage Examples**: See [guides/USE_CASES.md](guides/USE_CASES.md)
+1. **API Documentation**: Access the interactive Swagger UI at `http://localhost:3000/api-docs` (when server is running)
+   - Raw OpenAPI JSON available at `http://localhost:3000/api-docs.json`
+2. **API Contract Source**: Review Zod schemas in `src/api/schemas/session.ts`
+3. **OpenAPI Generator**: See `src/api/openapi.ts` for route definitions
+4. **WebSocket Protocol**: Check [architecture/ADR/WEBSOCKET_API_ANALYSIS.md](architecture/ADR/WEBSOCKET_API_ANALYSIS.md)
+5. **Usage Examples**: See [guides/USE_CASES.md](guides/USE_CASES.md)
 
 ### For Operations (DevOps)
 
@@ -176,8 +178,9 @@ Designed for multiple instances from day one with:
 Critical operations (<50ms target) use Redis only, never PostgreSQL.
 
 ### 4. API Contract - Single Source of Truth
-- **Zod schemas** (`src/types/api-contracts.ts`) are the source of truth
+- **Zod schemas** (`src/api/schemas/session.ts`) are the source of truth
 - Auto-generates: Runtime validation + TypeScript types + OpenAPI docs
+- Interactive Swagger UI available at `/api-docs` endpoint
 - No manual API documentation - everything is generated from schemas
 - See [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) for details
 

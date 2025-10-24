@@ -16,7 +16,7 @@ This skill provides automated workflows and troubleshooting guidance for managin
 
 Use this skill for infrastructure setup, deployment automation, environment configuration, connection troubleshooting, and operational tasks.
 
-ℹ️ **Note**: SyncKairos uses **Zod schemas with OpenAPI metadata** ([src/types/api-contracts.ts](../../../src/types/api-contracts.ts)) as the single source of truth for API contracts. OpenAPI spec auto-generates from schemas - no manual API docs needed. See [ARCHITECTURE.md](../../../docs/design/ARCHITECTURE.md#api-contract---single-source-of-truth).
+ℹ️ **Note**: SyncKairos uses **Zod schemas with OpenAPI metadata** ([src/api/schemas/session.ts](../../../src/api/schemas/session.ts)) as the single source of truth for API contracts. OpenAPI spec auto-generates from schemas and is served at `/api-docs` endpoint - no manual API docs needed. See [ARCHITECTURE.md](../../../docs/design/ARCHITECTURE.md#api-contract---single-source-of-truth).
 
 ## Workflow Decision Tree
 

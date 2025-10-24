@@ -19,7 +19,9 @@
       "Bash(curl:*)",
       "Read(//Users/yazang/.claude/skills/devops/**)",
       "Bash(./scripts/start-local.sh:*)",
-      "Read(//Users/yazang/.claude/skills/docker/**)"
+      "Read(//Users/yazang/.claude/skills/docker/**)",
+      "Bash(pnpm test:e2e:local:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []
