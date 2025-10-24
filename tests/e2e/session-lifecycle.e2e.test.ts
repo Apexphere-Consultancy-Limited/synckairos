@@ -17,7 +17,8 @@ import { getEnvironment } from './setup/environments'
 import {
   SessionResponseSchema,
   SwitchCycleResponseSchema,
-} from '../../src/types/api-contracts'
+} from '../../src/api/schemas/session'
+import { generateSessionId, createParticipant, createSessionPayload, TEST_PARTICIPANTS } from './test-utils'
 
 const createdSessions: string[] = []
 
@@ -40,18 +41,14 @@ test('complete session lifecycle @critical @smoke', async ({ request }) => {
   const testStartTime = Date.now()
 
   // 1. Create session
-  const sessionId = `e2e-lifecycle-${Date.now()}`
+  const sessionId = generateSessionId('e2e-lifecycle')
   createdSessions.push(sessionId)
 
   const createRes = await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [
-        { participant_id: 'p1', total_time_ms: 300000 },
-        { participant_id: 'p2', total_time_ms: 300000 }
-      ]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+      createParticipant(TEST_PARTICIPANTS.P2, 1, 300000),
+    ])
   })
   expect(createRes.status()).toBe(201)
   const sessionData = await createRes.json()
@@ -60,7 +57,7 @@ test('complete session lifecycle @critical @smoke', async ({ request }) => {
   const sessionResult = SessionResponseSchema.safeParse(sessionData)
   expect(sessionResult.success).toBe(true)
 
-  const session = sessionResult.data!
+  const { data: session } = sessionResult.data!
   expect(session.session_id).toBeDefined()
   expect(session.status).toBe('pending')
 
@@ -73,9 +70,9 @@ test('complete session lifecycle @critical @smoke', async ({ request }) => {
   const startResult = SessionResponseSchema.safeParse(startJson)
   expect(startResult.success).toBe(true)
 
-  const startData = startResult.data!
+  const { data: startData } = startResult.data!
   expect(startData.status).toBe('running')
-  expect(startData.active_participant_id).toBe('p1')
+  expect(startData.active_participant_id).toBe(TEST_PARTICIPANTS.P1)
 
   // 3. Switch cycle (HOT PATH - measure performance)
   const switchStartTime = Date.now()
@@ -89,8 +86,8 @@ test('complete session lifecycle @critical @smoke', async ({ request }) => {
   const switchResult = SwitchCycleResponseSchema.safeParse(switchJson)
   expect(switchResult.success).toBe(true)
 
-  const switchData = switchResult.data!
-  expect(switchData.new_active_participant_id).toBe('p2')
+  const { data: switchData } = switchResult.data!
+  expect(switchData.active_participant_id).toBe(TEST_PARTICIPANTS.P2)
   expect(switchLatency).toBeLessThan(50) // Performance target: <50ms
 
   // 4. Complete session
@@ -106,7 +103,7 @@ test('complete session lifecycle @critical @smoke', async ({ request }) => {
   const finalResult = SessionResponseSchema.safeParse(finalJson)
   expect(finalResult.success).toBe(true)
 
-  const finalSession = finalResult.data!
+  const { data: finalSession } = finalResult.data!
   expect(finalSession.status).toBe('completed')
 
   // 6. Validate total flow performance
@@ -118,19 +115,15 @@ test('complete session lifecycle @critical @smoke', async ({ request }) => {
 
 test('session lifecycle with pause and resume @critical', async ({ request }) => {
   const env = getEnvironment()
-  const sessionId = `e2e-lifecycle-pause-${Date.now()}`
+  const sessionId = generateSessionId('e2e-lifecycle-pause')
   createdSessions.push(sessionId)
 
   // Create and start session
   await request.post(`${env.baseURL}/v1/sessions`, {
-    data: {
-      session_id: sessionId,
-      sync_mode: 'per_participant',
-      participants: [
-        { participant_id: 'p1', total_time_ms: 300000 },
-        { participant_id: 'p2', total_time_ms: 300000 }
-      ]
-    }
+    data: createSessionPayload(sessionId, [
+      createParticipant(TEST_PARTICIPANTS.P1, 0, 300000),
+      createParticipant(TEST_PARTICIPANTS.P2, 1, 300000),
+    ])
   })
 
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)

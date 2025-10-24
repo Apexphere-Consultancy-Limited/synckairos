@@ -1,8 +1,8 @@
 # SyncKairos E2E Testing Overview
 
-**Version:** 1.0
-**Last Updated:** 2025-10-24
-**Status:** Ready for Implementation
+**Version:** 1.1
+**Last Updated:** 2025-10-24 (Updated after test fixes)
+**Status:** 🔧 In Progress - 20/33 tests passing (61%)
 **Framework:** Playwright
 
 ---
@@ -13,11 +13,15 @@ This document provides a high-level overview of the End-to-End (E2E) testing str
 
 **Key Gap Addressed:** Current integration tests use test harnesses. E2E tests validate against real running instances with actual WebSocket connections, HTTP requests, and infrastructure dependencies.
 
+**⚠️ Recent Update (2025-10-24):**
+Following systematic investigation of test failures, we identified and fixed 5 critical issues (2 product bugs, 3 test errors). Test pass rate improved from 30% to 61% (20/33 tests passing). See [E2E Issues](./ISSUES.md) for detailed analysis and remaining work.
+
 ---
 
 ## Related Documents
 
 - **[Test Scenarios](./TEST_SCENARIOS.md)** - Detailed test scenarios with implementation examples
+- **[E2E Issues](./ISSUES.md)** - Known issues, recent fixes, and remaining work
 - **[Environment Configuration](./ENVIRONMENTS.md)** - Environment setup and configuration
 - **[Execution Guide](./EXECUTION.md)** - How to run tests in different environments
 - **[CI/CD Integration](./CICD.md)** - GitHub Actions workflows for automated testing
