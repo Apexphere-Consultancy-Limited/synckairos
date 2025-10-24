@@ -2,7 +2,7 @@
  * E2E Test: Health Check
  *
  * Tags: @critical @smoke
- * Goal: Validate health endpoint
+ * Goal: Validate health endpoint (documented in OpenAPI spec)
  *
  * Covered Endpoints:
  * - GET /health
@@ -12,6 +12,7 @@
 
 import { test, expect } from '@playwright/test'
 import { getEnvironment } from './setup/environments'
+import { HealthResponseSchema } from '../../src/types/api-contracts'
 
 test('health endpoint @critical @smoke', async ({ request }) => {
   const env = getEnvironment()
@@ -22,10 +23,14 @@ test('health endpoint @critical @smoke', async ({ request }) => {
   const healthLatency = Date.now() - healthStartTime
 
   expect(healthRes.status()).toBe(200)
-  const healthData = await healthRes.json()
+  const healthJson = await healthRes.json()
 
-  // Validate response structure
-  expect(healthData).toHaveProperty('status', 'ok')
+  // Validate with Zod schema
+  const healthResult = HealthResponseSchema.safeParse(healthJson)
+  expect(healthResult.success).toBe(true)
+
+  const healthData = healthResult.data!
+  expect(healthData.status).toBe('ok')
   expect(healthLatency).toBeLessThan(50) // Health check should be <50ms (accounts for network latency)
 
   console.log(`✅ /health responded in ${healthLatency}ms (<50ms target met)`)
