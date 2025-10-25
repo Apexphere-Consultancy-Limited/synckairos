@@ -20,25 +20,37 @@ export interface QueueMetrics {
   delayed: number
 }
 
+export interface RetryConfig {
+  attempts?: number
+  backoffDelay?: number
+  queueName?: string // Optional queue name for test isolation
+}
+
 export class DBWriteQueue {
   private queue: Queue<DBWriteJobData>
   private worker: Worker<DBWriteJobData>
   private redisConnection: Redis
+  private queueName: string
 
-  constructor(redisUrl: string) {
+  constructor(redisUrl: string, retryConfig?: RetryConfig) {
     this.redisConnection = new Redis(redisUrl, {
       maxRetriesPerRequest: null, // Required for BullMQ
       enableReadyCheck: false,
     })
 
+    // Use provided retry config or defaults
+    const attempts = retryConfig?.attempts ?? 5
+    const backoffDelay = retryConfig?.backoffDelay ?? 2000
+    this.queueName = retryConfig?.queueName ?? 'db-writes'
+
     // Create Queue instance
-    this.queue = new Queue<DBWriteJobData>('db-writes', {
+    this.queue = new Queue<DBWriteJobData>(this.queueName, {
       connection: this.redisConnection,
       defaultJobOptions: {
-        attempts: 5, // Retry up to 5 times
+        attempts, // Retry up to N times (default: 5)
         backoff: {
           type: 'exponential',
-          delay: 2000, // 2s, 4s, 8s, 16s, 32s
+          delay: backoffDelay, // Default: 2s, 4s, 8s, 16s, 32s
         },
         removeOnComplete: {
           count: 100, // Keep last 100 successful jobs
@@ -50,7 +62,7 @@ export class DBWriteQueue {
 
     // Create Worker instance
     this.worker = new Worker<DBWriteJobData>(
-      'db-writes',
+      this.queueName,
       async (job: Job<DBWriteJobData>) => {
         await this.performDBWrite(job.data)
       },
@@ -264,8 +276,14 @@ export class DBWriteQueue {
     return { waiting, active, completed, failed, delayed }
   }
 
-  async close(): Promise<void> {
-    await this.worker.close()
+  async close(force: boolean = false): Promise<void> {
+    // Force close immediately discards active jobs (for tests)
+    // Graceful close waits for active jobs to complete (for production)
+    if (force) {
+      await this.worker.close(true) // Force close - don't wait for active jobs
+    } else {
+      await this.worker.close() // Graceful close
+    }
     await this.queue.close()
     await this.redisConnection.quit()
   }

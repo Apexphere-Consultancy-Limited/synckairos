@@ -21,7 +21,8 @@
       "Bash(./scripts/start-local.sh:*)",
       "Read(//Users/yazang/.claude/skills/docker/**)",
       "Bash(pnpm test:e2e:local:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(pnpm test:coverage:*)"
     ],
     "deny": [],
     "ask": []

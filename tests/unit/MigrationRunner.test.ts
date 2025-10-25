@@ -26,6 +26,7 @@ describe('Migration Runner', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   describe('Migration Execution', () => {
