@@ -15,8 +15,8 @@ const logger = createComponentLogger('DatabaseConfig')
 
 const poolConfig: PoolConfig = {
   connectionString: process.env.DATABASE_URL,
-  min: parseInt(process.env.DATABASE_POOL_MIN || '2', 10),
-  max: parseInt(process.env.DATABASE_POOL_MAX || '20', 10),
+  min: parseInt(process.env.DATABASE_POOL_MIN || '2', 10) || 2,
+  max: parseInt(process.env.DATABASE_POOL_MAX || '20', 10) || 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 }
@@ -56,6 +56,8 @@ export const healthCheck = async (): Promise<boolean> => {
 }
 
 export const closePool = async (): Promise<void> => {
-  await pool.end()
-  logger.info('PostgreSQL pool closed')
+  if (!pool.ended) {
+    await pool.end()
+    logger.info('PostgreSQL pool closed')
+  }
 }

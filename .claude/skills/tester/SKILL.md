@@ -11,7 +11,116 @@ This skill guides test creation for SyncKairos v2.0, ensuring comprehensive cove
 
 ⚠️ **CRITICAL**: All tests must use **Zod schemas** ([src/api/schemas/session.ts](../../../src/api/schemas/session.ts)) for validation. Never create manual validation logic - import and use the schema validators. Contract tests ([tests/contract/websocket-schemas.test.ts](../../../tests/contract/websocket-schemas.test.ts)) validate schemas match implementation. API documentation is auto-generated from schemas at `/api-docs`.
 
+## Quick Reference: Test Speed Targets ⚡
+
+| Test Type | Speed Target | Typical Duration | Max Acceptable |
+|-----------|--------------|------------------|----------------|
+| Unit Test (single) | <20ms | 14-19ms | <100ms |
+| Unit Test Suite | <5s | 2-3s | <10s |
+| Integration Test | <5s | 2-5s | <10s |
+| E2E Test | <30s | 10-20s | <60s |
+| Load Test | minutes | 5-15min | 30min |
+
+**Golden Rules:**
+1. ⚡ Unit tests should be **FAST** (<100ms) - if not, it's probably an integration test
+2. 🎯 Test YOUR code, not libraries (don't test BullMQ, Redis, PostgreSQL)
+3. ⏱️ Use `vi.useFakeTimers()` instead of actual `setTimeout` waits
+4. 🔬 Call methods directly - don't go through the entire stack in unit tests
+5. 📁 Classify correctly: unit vs integration vs E2E vs performance
+
 ## Core Capabilities
+
+### 0. Test Classification & Analysis 🔍
+
+**CRITICAL: Run this FIRST before writing any tests!**
+
+Analyze existing tests to ensure proper classification and identify architectural issues.
+
+**When to use:**
+- Before writing new tests for a component
+- When reviewing existing test files
+- When tests are running slowly (>1s for unit tests)
+- During code review or refactoring
+
+**Workflow:**
+1. Analyze test file structure and dependencies
+2. Identify misclassifications:
+   - "Unit tests" using real Redis/PostgreSQL/BullMQ
+   - Tests with `setTimeout` waits >100ms
+   - Tests using actual infrastructure
+3. Generate classification report
+4. Recommend fixes (split, move, or refactor)
+
+**Classification Criteria:**
+```
+✅ TRUE UNIT TEST:
+- Tests single component/function in isolation
+- All dependencies mocked (no real Redis/DB)
+- Execution time: <100ms per test
+- No network calls, no file I/O
+- Location: tests/unit/
+
+✅ INTEGRATION TEST:
+- Tests component interaction with infrastructure
+- Uses real Redis/PostgreSQL (test instances)
+- Execution time: <10s per test
+- May use fake timers to speed up
+- Location: tests/integration/
+
+✅ E2E TEST:
+- Tests full user workflows
+- Real infrastructure, real API calls
+- Execution time: <30s per test
+- Location: tests/e2e/
+
+✅ PERFORMANCE/LOAD TEST:
+- Measures throughput, latency, concurrency
+- Large data sets, high load
+- Execution time: minutes
+- Location: tests/performance/ or tests/load/
+```
+
+**Example Analysis Output:**
+```
+❌ tests/unit/DBWriteQueue.retry.test.ts
+   Type: Integration Test (MISCLASSIFIED)
+   Issues:
+     - Creates real DBWriteQueue with Redis (line 36)
+     - Uses real PostgreSQL pool (line 70)
+     - Waits 70 seconds for retries (line 87)
+     - Tests BullMQ library behavior (not our code)
+
+   Recommendations:
+     1. Extract error handling logic → new unit test
+        - Test: Which errors trigger retries?
+        - Mock: pool.connect, logger
+        - Expected time: <20ms
+
+     2. Move BullMQ integration tests → tests/integration/
+        - Use vi.useFakeTimers() for speed
+        - Expected time: ~5s (down from 90s)
+
+   Estimated Impact:
+     - Speed: 90s → 5s (18x faster)
+     - New unit tests: 7 tests in <20ms
+     - Better test architecture
+```
+
+**Auto-Fix Suggestions:**
+```typescript
+// Detected pattern: Testing error classification
+// Current (integration): Waits for BullMQ to retry
+// Suggested (unit): Test logic directly
+
+// Generate:
+it('should throw for ECONNREFUSED (triggers retry)', async () => {
+  const performDBWrite = (queue as any).performDBWrite
+  pool.connect = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+  await expect(performDBWrite(data)).rejects.toThrow('ECONNREFUSED')
+})
+```
+
+---
 
 ### 1. Unit Test Generation (Vitest)
 
@@ -347,26 +456,237 @@ Is it coverage validation?
 - **Unit tests:** `tests/unit/ComponentName.test.ts`
 - **Integration tests:** `tests/integration/api.test.ts`, `tests/integration/websocket.test.ts`
 - **Load tests:** `tests/load/scenarios/scenario-name.js`
+- **Performance tests:** `tests/performance/benchmark-name.test.ts`
 
 ### Naming Conventions
 - Describe behavior: `'should throw error on version mismatch'`
 - Use active voice
 - Be specific about expected outcome
+- Include intent in parentheses: `'should throw for ECONNREFUSED (triggers retry)'`
+- For negative tests: `'should NOT throw for duplicate key (no retry)'`
 
 ### Test Data
 - Use realistic session IDs, participant IDs
 - Include edge values (0, negative, max)
 - Use consistent test fixtures
+- For unit tests: Use fixed dates `new Date('2025-01-01T00:00:00Z')` for deterministic results
 
-### Performance Testing
-- Always measure latency for hot paths
-- Use `Date.now()` for timing
-- Assert against performance budgets (<50ms, <100ms)
+### Test Speed & Performance
+⚡ **CRITICAL**: Test speed directly impacts developer productivity
+
+**Speed Targets:**
+- Unit tests: <100ms per test (ideally <20ms)
+- Integration tests: <10s per test (use fake timers if needed)
+- E2E tests: <30s per test
+- Total unit test suite: <5s
+
+**Techniques:**
+
+1. **Use Fake Timers for Delays**
+   ```typescript
+   beforeEach(() => vi.useFakeTimers())
+   afterEach(() => vi.useRealTimers())
+
+   // Instead of: await new Promise(resolve => setTimeout(resolve, 70000))
+   // Use:
+   for (let i = 0; i < 5; i++) {
+     await vi.runAllTimersAsync()
+   }
+   ```
+
+2. **Test Methods Directly (Unit Tests)**
+   ```typescript
+   // ❌ Don't: Go through entire stack
+   await queue.queueWrite(...)
+   await new Promise(setTimeout(70000))
+
+   // ✅ Do: Call method directly
+   const performDBWrite = (queue as any).performDBWrite
+   await expect(performDBWrite(data)).rejects.toThrow()
+   ```
+
+3. **Mock at the Right Level**
+   ```typescript
+   // ✅ Mock dependencies, not the system under test
+   pool.connect = vi.fn().mockRejectedValue(new Error('...'))
+
+   // ❌ Don't mock the component being tested
+   vi.mock('@/state/DBWriteQueue') // Wrong!
+   ```
+
+4. **Reuse Test Infrastructure**
+   ```typescript
+   // ✅ Share setup when safe
+   beforeAll(() => {
+     queue = new DBWriteQueue(redisUrl)
+   })
+   afterEach(async () => {
+     await queue.cleanup() // Faster than recreating
+   })
+   afterAll(async () => {
+     await queue.close()
+   })
+   ```
+
+### Test Optimization Principles
+
+#### 1. Test Isolation Enables Parallelism
+- **Principle:** Isolated tests can run concurrently; shared resources force sequential execution
+- **Implementation:** Use unique identifiers per test (queue names, DB schemas, ports, temp directories)
+- **Pattern:** `beforeEach` with unique resources > `beforeAll` with shared resources
+- **Benefit:** Unlocks parallel execution for massive performance gains (50%+ faster)
+
+**Example:**
+```typescript
+// ❌ Bad: Shared resources (forces sequential execution)
+beforeAll(() => queue = new DBWriteQueue('redis://localhost'))
+
+// ✅ Good: Isolated resources (enables parallel execution)
+beforeEach(() => {
+  const uniqueName = `test-queue-${Date.now()}-${Math.random().toString(36).substring(7)}`
+  queue = new DBWriteQueue('redis://localhost', { queueName: uniqueName })
+})
+```
+
+#### 2. Make Product Code Testable, Don't Patch Tests
+- **Anti-pattern:** Hardcoding test-specific logic that bypasses product code
+- **Better approach:** Make product code configurable (dependency injection, config parameters)
+- **Example:** Add `RetryConfig` interface to product code instead of mocking retry delays
+- **Result:** Better product design + faster tests
+
+```typescript
+// ❌ Anti-pattern: Test-only workaround
+// Production code hardcoded with 2000ms delay
+// Tests use setTimeout to wait 70 seconds
+
+// ✅ Better: Configurable product code
+export interface RetryConfig {
+  attempts?: number
+  backoffDelay?: number
+  queueName?: string // For test isolation
+}
+
+// Production: default 2000ms
+// Tests: configurable 200ms (10x faster)
+```
+
+#### 3. Performance Optimization Hierarchy
+Apply optimizations in this order for maximum impact:
+
+1. **Algorithm/Config changes** (10x+ gains)
+   - Fast retry delays for tests (2000ms → 200ms)
+   - Use vi.useFakeTimers() instead of real waits
+
+2. **Remove unnecessary operations** (2-5x gains)
+   - Delete slow cleanup queries
+   - Skip redundant validation
+
+3. **Parallelization** (1.5-3x gains)
+   - Enable concurrent test execution
+   - Check vitest config: `singleFork: false`, `fileParallelism: true`
+
+4. **Fine-tuning** (1.1-1.5x gains)
+   - Timeout adjustments
+   - Connection pooling
+
+#### 4. Root Cause Over Symptoms
+When tests are slow or failing:
+- **Symptom:** Tests timing out at 15s
+- **Surface cause:** Slow retry delays (2000ms)
+- **Root cause:** Mock interference from shared queue names
+- **Lesson:** Fix the root cause (isolation) to unlock other optimizations (parallelism)
+
+#### 5. Check Test Configuration Defaults
+Test frameworks may prioritize safety over speed:
+- ❌ `singleFork: true` (forces sequential execution)
+- ❌ `maxConcurrency: 1` (no parallelism)
+- ❌ `parallel: false` (explicit sequential)
+
+When test isolation is guaranteed, enable parallel execution:
+```typescript
+// vitest.config.ts
+export default defineConfig({
+  test: {
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: false, // Enable parallel execution
+      },
+    },
+    fileParallelism: true, // Run test files in parallel
+  },
+})
+```
+
+**⚠️ IMPORTANT:** Only enable parallelism after confirming tests are properly isolated (no shared state, unique resource names).
+
+### What to Test (and What NOT to Test)
+
+✅ **DO Test:**
+- YOUR error handling logic
+- YOUR business logic
+- YOUR data transformations
+- Edge cases in YOUR code
+- Error classification decisions
+
+❌ **DON'T Test:**
+- Library/framework behavior (BullMQ retries, Redis commands)
+- Third-party code you don't own
+- Database constraint enforcement (PostgreSQL tests this)
+- Language features (JavaScript/TypeScript)
+
+**Example:**
+```typescript
+// ❌ Testing BullMQ (they test this)
+it('should retry 5 times with exponential backoff', async () => {
+  // Waits 70 seconds for BullMQ to retry...
+})
+
+// ✅ Testing OUR error classification
+it('should throw for ECONNREFUSED (triggers BullMQ retry)', async () => {
+  pool.connect = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+  await expect(performDBWrite(data)).rejects.toThrow()
+  // 19ms - Tests OUR logic
+})
+```
+
+### Mock Strategy
+
+**Level 1: Mock External Dependencies**
+```typescript
+// Mock database connections
+pool.connect = vi.fn().mockResolvedValue(mockClient)
+
+// Mock logger (side effects)
+vi.spyOn(logger, 'error').mockImplementation(() => {})
+
+// Mock Redis
+redisClient.get = vi.fn().mockResolvedValue(null)
+```
+
+**Level 2: Create Test Doubles**
+```typescript
+const mockClient = {
+  query: vi.fn(async (sql) => {
+    if (sql.includes('INSERT')) throw new Error('duplicate key')
+    return { rows: [], rowCount: 0 }
+  }),
+  release: vi.fn()
+}
+```
+
+**Level 3: Spy on Private Methods**
+```typescript
+const alertSpy = vi.spyOn(queue as any, 'alertOnPersistentFailure')
+// Test that private method was called correctly
+```
 
 ### Cleanup
 - Clear Redis after each test: `await redisClient.flushall()`
 - Reset PostgreSQL test database
 - Close WebSocket connections
+- Restore mocks: `vi.restoreAllMocks()`
+- Restore timers: `vi.useRealTimers()`
 
 ---
 

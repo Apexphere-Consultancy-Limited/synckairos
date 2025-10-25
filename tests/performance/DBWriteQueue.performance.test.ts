@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { v4 as uuidv4 } from 'uuid'
 import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { pool } from '@/config/database'
 import { SyncState } from '@/types/session'
 
-// Helper to create test state
+// Helper to create test state with valid UUIDs
 const createTestState = (sessionId: string): SyncState => ({
   session_id: sessionId,
   sync_mode: 'per_participant',
@@ -13,7 +14,7 @@ const createTestState = (sessionId: string): SyncState => ({
   max_time_ms: null,
   participants: [
     {
-      participant_id: 'participant-1',
+      participant_id: uuidv4(),
       total_time_ms: 60000,
       time_remaining_ms: 60000,
       group_id: null,
@@ -28,11 +29,13 @@ const createTestState = (sessionId: string): SyncState => ({
   version: 1,
 })
 
-describe('DBWriteQueue - Performance', () => {
+describe('DBWriteQueue - Performance Benchmarks', () => {
   let queue: DBWriteQueue
 
   beforeEach(() => {
-    queue = new DBWriteQueue(process.env.REDIS_URL!)
+    // Use unique queue name for test isolation
+    const queueName = `perf-queue-${Date.now()}-${Math.random()}`
+    queue = new DBWriteQueue(process.env.REDIS_URL!, { queueName })
   })
 
   afterEach(async () => {
@@ -40,8 +43,8 @@ describe('DBWriteQueue - Performance', () => {
   })
 
   it('should queue 100 jobs within 1 second', async () => {
-    const jobs = Array.from({ length: 100 }, (_, i) => {
-      const sessionId = `perf-queue-${i}`
+    const jobs = Array.from({ length: 100 }, () => {
+      const sessionId = uuidv4()
       const state = createTestState(sessionId)
       return { sessionId, state }
     })
@@ -68,17 +71,20 @@ describe('DBWriteQueue - Performance', () => {
     expect(finalMetrics.completed).toBeGreaterThanOrEqual(100)
 
     // Cleanup
-    for (let i = 0; i < 100; i++) {
-      const sessionId = `perf-queue-${i}`
-      await pool.query('DELETE FROM sync_events WHERE session_id = $1', [sessionId])
-      await pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [sessionId])
-    }
+    await Promise.all(
+      jobs.map(job =>
+        Promise.all([
+          pool.query('DELETE FROM sync_events WHERE session_id = $1', [job.sessionId]),
+          pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [job.sessionId]),
+        ])
+      )
+    )
   }, 25000)
 
   it('should process jobs concurrently (10 workers)', async () => {
     // Queue 20 jobs
-    const jobs = Array.from({ length: 20 }, (_, i) => {
-      const sessionId = `perf-concurrent-${i}`
+    const jobs = Array.from({ length: 20 }, () => {
+      const sessionId = uuidv4()
       const state = createTestState(sessionId)
       return { sessionId, state }
     })
@@ -107,21 +113,26 @@ describe('DBWriteQueue - Performance', () => {
     expect(totalTime).toBeLessThan(10000) // Allow some buffer
 
     // Cleanup
-    for (let i = 0; i < 20; i++) {
-      const sessionId = `perf-concurrent-${i}`
-      await pool.query('DELETE FROM sync_events WHERE session_id = $1', [sessionId])
-      await pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [sessionId])
-    }
+    await Promise.all(
+      jobs.map(job =>
+        Promise.all([
+          pool.query('DELETE FROM sync_events WHERE session_id = $1', [job.sessionId]),
+          pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [job.sessionId]),
+        ])
+      )
+    )
   }, 20000)
 
   it('should handle rapid sequential queuing without blocking', async () => {
     const sessionCount = 50
+    const jobs: Array<{ sessionId: string; state: SyncState }> = []
     const start = Date.now()
 
     // Queue jobs one after another (not parallel)
     for (let i = 0; i < sessionCount; i++) {
-      const sessionId = `perf-sequential-${i}`
+      const sessionId = uuidv4()
       const state = createTestState(sessionId)
+      jobs.push({ sessionId, state })
       await queue.queueWrite(sessionId, state, 'session_created')
     }
 
@@ -134,21 +145,24 @@ describe('DBWriteQueue - Performance', () => {
     await new Promise(resolve => setTimeout(resolve, 12000))
 
     // Cleanup
-    for (let i = 0; i < sessionCount; i++) {
-      const sessionId = `perf-sequential-${i}`
-      await pool.query('DELETE FROM sync_events WHERE session_id = $1', [sessionId])
-      await pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [sessionId])
-    }
+    await Promise.all(
+      jobs.map(job =>
+        Promise.all([
+          pool.query('DELETE FROM sync_events WHERE session_id = $1', [job.sessionId]),
+          pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [job.sessionId]),
+        ])
+      )
+    )
   }, 20000)
 
   it('should maintain performance with large state objects', async () => {
-    const jobs = Array.from({ length: 10 }, (_, i) => {
-      const sessionId = `perf-large-state-${i}`
+    const jobs = Array.from({ length: 10 }, () => {
+      const sessionId = uuidv4()
       const state = createTestState(sessionId)
 
       // Create large state with 100 participants
       state.participants = Array.from({ length: 100 }, (_, j) => ({
-        participant_id: `participant-${j}`,
+        participant_id: uuidv4(),
         total_time_ms: 60000,
         time_remaining_ms: 60000,
         group_id: `group-${j % 10}`,
@@ -175,17 +189,20 @@ describe('DBWriteQueue - Performance', () => {
     expect(metrics.completed).toBeGreaterThanOrEqual(10)
 
     // Cleanup
-    for (let i = 0; i < 10; i++) {
-      const sessionId = `perf-large-state-${i}`
-      await pool.query('DELETE FROM sync_events WHERE session_id = $1', [sessionId])
-      await pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [sessionId])
-    }
+    await Promise.all(
+      jobs.map(job =>
+        Promise.all([
+          pool.query('DELETE FROM sync_events WHERE session_id = $1', [job.sessionId]),
+          pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [job.sessionId]),
+        ])
+      )
+    )
   }, 15000)
 
   it('should track metrics efficiently without impacting performance', async () => {
     // Queue 50 jobs
-    const jobs = Array.from({ length: 50 }, (_, i) => {
-      const sessionId = `perf-metrics-${i}`
+    const jobs = Array.from({ length: 50 }, () => {
+      const sessionId = uuidv4()
       const state = createTestState(sessionId)
       return { sessionId, state }
     })
@@ -207,17 +224,26 @@ describe('DBWriteQueue - Performance', () => {
     await new Promise(resolve => setTimeout(resolve, 12000))
 
     // Cleanup
-    for (let i = 0; i < 50; i++) {
-      const sessionId = `perf-metrics-${i}`
-      await pool.query('DELETE FROM sync_events WHERE session_id = $1', [sessionId])
-      await pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [sessionId])
-    }
+    await Promise.all(
+      jobs.map(job =>
+        Promise.all([
+          pool.query('DELETE FROM sync_events WHERE session_id = $1', [job.sessionId]),
+          pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [job.sessionId]),
+        ])
+      )
+    )
   }, 20000)
 
   it('should handle mixed event types efficiently', async () => {
-    const eventTypes = ['session_created', 'session_started', 'cycle_switched', 'session_updated', 'session_completed']
+    const eventTypes = [
+      'session_created',
+      'session_started',
+      'cycle_switched',
+      'session_updated',
+      'session_completed',
+    ]
     const jobs = Array.from({ length: 25 }, (_, i) => {
-      const sessionId = `perf-mixed-events-${i}`
+      const sessionId = uuidv4()
       const state = createTestState(sessionId)
       const eventType = eventTypes[i % eventTypes.length]
       return { sessionId, state, eventType }
@@ -225,9 +251,7 @@ describe('DBWriteQueue - Performance', () => {
 
     const start = Date.now()
 
-    await Promise.all(jobs.map(job =>
-      queue.queueWrite(job.sessionId, job.state, job.eventType)
-    ))
+    await Promise.all(jobs.map(job => queue.queueWrite(job.sessionId, job.state, job.eventType)))
 
     const queueLatency = Date.now() - start
 
@@ -238,17 +262,23 @@ describe('DBWriteQueue - Performance', () => {
     await new Promise(resolve => setTimeout(resolve, 8000))
 
     // Verify different event types were stored
+    const sessionIds = jobs.map(j => j.sessionId)
+    const placeholders = sessionIds.map((_, i) => `$${i + 1}`).join(', ')
     const eventTypesInDB = await pool.query(
-      "SELECT DISTINCT event_type FROM sync_events WHERE session_id LIKE 'perf-mixed-events-%'"
+      `SELECT DISTINCT event_type FROM sync_events WHERE session_id IN (${placeholders})`,
+      sessionIds
     )
 
     expect(eventTypesInDB.rows.length).toBeGreaterThan(1)
 
     // Cleanup
-    for (let i = 0; i < 25; i++) {
-      const sessionId = `perf-mixed-events-${i}`
-      await pool.query('DELETE FROM sync_events WHERE session_id = $1', [sessionId])
-      await pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [sessionId])
-    }
+    await Promise.all(
+      jobs.map(job =>
+        Promise.all([
+          pool.query('DELETE FROM sync_events WHERE session_id = $1', [job.sessionId]),
+          pool.query('DELETE FROM sync_sessions WHERE session_id = $1', [job.sessionId]),
+        ])
+      )
+    )
   }, 15000)
 })

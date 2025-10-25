@@ -76,8 +76,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174201', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174202', participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -101,8 +101,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174203', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174204', participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -129,8 +129,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174205', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174206', participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -173,9 +173,9 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
-            { participant_id: 'p3', participant_index: 2, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174207', participant_index: 0, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174208', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174209', participant_index: 2, total_time_ms: 600000 },
           ],
           total_time_ms: 1800000,
         })
@@ -213,8 +213,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174210', participant_index: 0, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174211', participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -266,7 +266,7 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174212', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -303,7 +303,7 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174213', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -328,7 +328,7 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174214', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -359,8 +359,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174215', participant_index: 0, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174216', participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -396,8 +396,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174217', participant_index: 0, total_time_ms: 600000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174218', participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
