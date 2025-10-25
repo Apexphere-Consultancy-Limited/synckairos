@@ -61,8 +61,8 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174201', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174202', participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -110,7 +110,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174203', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -151,7 +151,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174204', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -179,7 +179,8 @@ describe('REST API Response Format Tests', () => {
 
       expect(response.body.error).toHaveProperty('code')
       expect(response.body.error).toHaveProperty('message')
-      expect(response.body.error.message).toContain('participants required')
+      expect(response.body.error.code).toBe('VALIDATION_ERROR')
+      expect(response.body.error.message).toBe('Request validation failed')
     })
 
     it('should NOT include stack trace in production', async () => {
@@ -219,7 +220,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174205', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -244,8 +245,8 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174206', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174207', participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -278,7 +279,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174208', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -315,7 +316,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174209', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -340,7 +341,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174210', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -362,7 +363,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: '223e4567-e89b-12d3-a456-426614174211', participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })

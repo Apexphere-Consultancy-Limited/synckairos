@@ -193,6 +193,10 @@ for (let i = 0; i < 100; i++) {
 
 ## Open Issues
 
+> **Note:** Unit/Integration test issues have been moved to [../coverage/ISSUES.md](../coverage/ISSUES.md)
+
+
+
 ### 🔴 Issue #1: Multi-Client WebSocket Test Timeouts (CRITICAL)
 
 **Priority:** CRITICAL
@@ -541,17 +545,23 @@ E2E tests validate WebSocket functionality but don't verify the visual represent
 | 2025-10-24 | **Major update: Fixed 5 critical issues (2 product bugs, 3 test errors)** | Claude Agent |
 | 2025-10-24 | Test suite improvement: 10/33 → 20/33 passing (100% increase) | Claude Agent |
 | 2025-10-24 | Added 4 new open issues requiring investigation | Claude Agent |
+| 2025-10-24 | **CRITICAL: Documented unit/integration test failures blocking SonarQube CI/CD** | Claude Agent |
+| 2025-10-24 | Added 4 new critical issues (U1-U4): Database UUIDs, SessionNotFound errors, Validation mismatches, Redis config | Claude Agent |
+| 2025-10-24 | **REFACTOR: Moved unit/integration issues to separate docs/testing/coverage/ISSUES.md** | Claude Agent |
+| 2025-10-24 | E2E ISSUES.md now focuses only on E2E tests (Playwright) | Claude Agent |
 
 ---
 
 ## Summary
 
-**Production Readiness:** 🔧 **IN PROGRESS** - Significant improvements made
+**Production Readiness:** 🔧 **IN PROGRESS** - E2E tests improving, unit/integration tests documented
 
-**Test Results:**
+**E2E Test Results:**
 - **Before investigation:** 10/33 passing (30%)
 - **After fixes:** 20/33 passing (61%)
 - **Improvement:** +10 tests fixed, 100% increase in pass rate
+
+> **Note:** Unit/Integration test issues tracked separately in [../coverage/ISSUES.md](../coverage/ISSUES.md)
 
 **Recently Fixed (2025-10-24):**
 1. ✅ **CRITICAL:** Validation middleware rejecting optional POST bodies (PRODUCT BUG)
