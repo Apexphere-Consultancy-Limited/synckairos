@@ -62,7 +62,7 @@ describe('State Transitions - Edge Cases', () => {
 
   describe('Invalid Status Transitions', () => {
     it('should allow PENDING → RUNNING transition', async () => {
-      const sessionId = 'transition-pending-running'
+      const sessionId = `transition-pending-running-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, { status: SyncStatus.PENDING })
       await stateManager.createSession(state)
 
@@ -78,7 +78,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should allow RUNNING → PAUSED transition', async () => {
-      const sessionId = 'transition-running-paused'
+      const sessionId = `transition-running-paused-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, { status: SyncStatus.RUNNING })
       await stateManager.createSession(state)
 
@@ -93,7 +93,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should allow PAUSED → RUNNING transition', async () => {
-      const sessionId = 'transition-paused-running'
+      const sessionId = `transition-paused-running-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, { status: SyncStatus.PAUSED })
       await stateManager.createSession(state)
 
@@ -108,7 +108,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should allow RUNNING → COMPLETED transition', async () => {
-      const sessionId = 'transition-running-completed'
+      const sessionId = `transition-running-completed-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, { status: SyncStatus.RUNNING })
       await stateManager.createSession(state)
 
@@ -127,7 +127,7 @@ describe('State Transitions - Edge Cases', () => {
     it('should technically allow RUNNING → PENDING transition (backward transition)', async () => {
       // Note: RedisStateManager doesn't enforce state machine rules
       // This is by design - the SyncEngine will enforce business logic
-      const sessionId = 'transition-backward'
+      const sessionId = `transition-backward-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, { status: SyncStatus.RUNNING })
       await stateManager.createSession(state)
 
@@ -142,7 +142,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should allow COMPLETED → RUNNING transition (session restart scenario)', async () => {
-      const sessionId = 'transition-completed-running'
+      const sessionId = `transition-completed-running-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         status: SyncStatus.COMPLETED,
         session_completed_at: new Date(),
@@ -207,7 +207,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should allow deleting COMPLETED session', async () => {
-      const sessionId = 'completed-delete'
+      const sessionId = `completed-delete-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         status: SyncStatus.COMPLETED,
         session_completed_at: new Date(),
@@ -229,7 +229,7 @@ describe('State Transitions - Edge Cases', () => {
 
   describe('Operations on Deleted Sessions', () => {
     it('should return null when getting deleted session', async () => {
-      const sessionId = 'deleted-get'
+      const sessionId = `deleted-get-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId)
       await stateManager.createSession(state)
 
@@ -242,7 +242,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should throw SessionNotFoundError when updating deleted session with version check', async () => {
-      const sessionId = 'deleted-update'
+      const sessionId = `deleted-update-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId)
       await stateManager.createSession(state)
 
@@ -258,7 +258,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should allow updating deleted session without version check (recreates)', async () => {
-      const sessionId = 'deleted-update-no-version'
+      const sessionId = `deleted-update-no-version-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId)
       await stateManager.createSession(state)
 
@@ -279,7 +279,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should allow deleting already deleted session (idempotent)', async () => {
-      const sessionId = 'deleted-delete-again'
+      const sessionId = `deleted-delete-again-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId)
       await stateManager.createSession(state)
 
@@ -317,7 +317,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should handle updating single participant session', async () => {
-      const sessionId = 'single-p-update'
+      const sessionId = `single-p-update-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         participants: [
           {
@@ -351,7 +351,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should handle transitioning single participant to completed', async () => {
-      const sessionId = 'single-p-complete'
+      const sessionId = `single-p-complete-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         participants: [
           {
@@ -384,7 +384,7 @@ describe('State Transitions - Edge Cases', () => {
 
   describe('Participant State Edge Cases', () => {
     it('should handle all participants with has_gone=true', async () => {
-      const sessionId = 'all-gone'
+      const sessionId = `all-gone-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         participants: [
           {
@@ -414,7 +414,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should handle no active participants', async () => {
-      const sessionId = 'no-active'
+      const sessionId = `no-active-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         participants: [
           {
@@ -445,7 +445,7 @@ describe('State Transitions - Edge Cases', () => {
 
     it('should handle multiple active participants (invalid state)', async () => {
       // This is an invalid state, but RedisStateManager should store it
-      const sessionId = 'multi-active'
+      const sessionId = `multi-active-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         participants: [
           {
@@ -476,7 +476,7 @@ describe('State Transitions - Edge Cases', () => {
 
   describe('Session Lifecycle Edge Cases', () => {
     it('should handle session with session_started_at but status=PENDING', async () => {
-      const sessionId = 'started-pending'
+      const sessionId = `started-pending-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         status: SyncStatus.PENDING,
         session_started_at: new Date(), // Started but still pending
@@ -491,7 +491,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should handle session with session_completed_at but status=RUNNING', async () => {
-      const sessionId = 'completed-running'
+      const sessionId = `completed-running-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         status: SyncStatus.RUNNING,
         session_completed_at: new Date(), // Completed timestamp but still running
@@ -506,7 +506,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should handle clearing session_started_at timestamp', async () => {
-      const sessionId = 'clear-started'
+      const sessionId = `clear-started-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId, {
         status: SyncStatus.RUNNING,
         session_started_at: new Date(),
@@ -550,7 +550,7 @@ describe('State Transitions - Edge Cases', () => {
     })
 
     it('should update updated_at timestamp on each update', async () => {
-      const sessionId = 'update-timestamp'
+      const sessionId = `update-timestamp-${Date.now()}-${Math.random()}`
       const state = createTestState(sessionId)
 
       await stateManager.createSession(state)
