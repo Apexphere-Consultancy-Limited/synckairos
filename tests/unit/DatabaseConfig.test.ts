@@ -104,12 +104,20 @@ describe('DatabaseConfig', () => {
     it('should return true when database is healthy', async () => {
       process.env.DATABASE_URL = 'postgresql://localhost:5432/synckairos'
 
-      const { healthCheck, pool } = await import('@/config/database')
+      const { pool } = await import('@/config/database')
 
+      // Mock pool.query to simulate successful database connection
+      const originalQuery = pool.query.bind(pool)
+      pool.query = vi.fn().mockResolvedValue({ rows: [1] })
+
+      const { healthCheck } = await import('@/config/database')
       const isHealthy = await healthCheck()
 
       expect(isHealthy).toBe(true)
+      expect(pool.query).toHaveBeenCalledWith('SELECT 1')
 
+      // Restore and cleanup
+      pool.query = originalQuery
       await pool.end()
     })
 
@@ -149,23 +157,26 @@ describe('DatabaseConfig', () => {
     it('should log on successful connection', async () => {
       process.env.DATABASE_URL = 'postgresql://localhost:5432/synckairos'
 
-      // Mock logger
-      const loggerSpy = vi.fn()
-
       const { pool } = await import('@/config/database')
 
-      // Create a connection to trigger connect event
+      // Mock pool.connect to avoid real database connection
+      const mockClient = {
+        release: vi.fn(),
+      }
+      const originalConnect = pool.connect.bind(pool)
+      pool.connect = vi.fn().mockResolvedValue(mockClient)
+
+      // Create a connection to trigger connect event (mocked)
       const client = await pool.connect()
-
-      // Wait for event to be processed
-      await new Promise(resolve => setTimeout(resolve, 100))
-
       client.release()
-      await pool.end()
 
-      // Note: Actual logging verification depends on logger implementation
-      // This test validates the event handler is attached
+      // Verify the pool has connect event listener attached
       expect(pool.listenerCount('connect')).toBeGreaterThan(0)
+      expect(pool.connect).toHaveBeenCalled()
+
+      // Restore and cleanup
+      pool.connect = originalConnect
+      await pool.end()
     })
 
     it('should log on connection error', async () => {
