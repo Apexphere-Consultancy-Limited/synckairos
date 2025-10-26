@@ -20,9 +20,12 @@ describe('RedisStateManager - CRUD Operations', () => {
   beforeEach(async () => {
     redisClient = createRedisClient()
     pubSubClient = createRedisPubSubClient()
-    stateManager = new RedisStateManager(redisClient, pubSubClient)
-    // Use flushdb() instead of flushall() to avoid clearing other test databases
-    await redisClient.flushdb()
+
+    // Use unique key prefix per test run to avoid race conditions in parallel execution
+    const uniquePrefix = `test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redisClient, pubSubClient, undefined, uniquePrefix)
+
+    // No need for flushdb() anymore - each test run has its own namespace!
   })
 
   afterEach(async () => {
@@ -104,9 +107,12 @@ describe('RedisStateManager - CRUD Operations', () => {
     })
 
     it('should throw StateDeserializationError on JSON parse errors', async () => {
-      const invalidSessionId = `invalid-${Date.now()}`
-      // Manually insert invalid JSON with TTL
-      await redisClient.setex(`session:${invalidSessionId}`, 3600, 'not-valid-json')
+      const state = createTestState()
+      const invalidSessionId = state.session_id
+      // Manually insert invalid JSON with TTL - use private getSessionKey method's output
+      // We need to use the same prefix the stateManager instance is using
+      const key = `${(stateManager as any).SESSION_PREFIX}${invalidSessionId}`
+      await redisClient.setex(key, 3600, 'not-valid-json')
 
       await expect(stateManager.getSession(invalidSessionId)).rejects.toThrow(StateDeserializationError)
       await expect(stateManager.getSession(invalidSessionId)).rejects.toThrow('Failed to deserialize state')
@@ -152,7 +158,8 @@ describe('RedisStateManager - CRUD Operations', () => {
       const state = createTestState(sessionId)
       await stateManager.createSession(state)
 
-      const ttlBefore = await redisClient.ttl(`session:${sessionId}`)
+      const key = `${(stateManager as any).SESSION_PREFIX}${sessionId}`
+      const ttlBefore = await redisClient.ttl(key)
       expect(ttlBefore).toBeGreaterThan(0)
       expect(ttlBefore).toBeLessThanOrEqual(3600)
 
@@ -164,7 +171,7 @@ describe('RedisStateManager - CRUD Operations', () => {
       expect(current).toBeDefined()
       await stateManager.updateSession(sessionId, current!)
 
-      const ttlAfter = await redisClient.ttl(`session:${sessionId}`)
+      const ttlAfter = await redisClient.ttl(key)
       // Should be refreshed - at least greater than before minus the delay
       expect(ttlAfter).toBeGreaterThan(3500) // Should be close to 3600
     })

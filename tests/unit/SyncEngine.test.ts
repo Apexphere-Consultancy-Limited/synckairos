@@ -29,12 +29,12 @@ describe('SyncEngine', () => {
     pubSubClient = createRedisPubSubClient()
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
 
-    // Create state manager and sync engine
-    stateManager = new RedisStateManager(redisClient, pubSubClient, dbQueue)
+    // Use unique key prefix per test run to avoid race conditions in parallel execution
+    const uniquePrefix = `test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redisClient, pubSubClient, dbQueue, uniquePrefix)
     syncEngine = new SyncEngine(stateManager)
 
-    // Clear test data
-    await redisClient.flushdb()
+    // No need for flushdb() anymore - each test run has its own namespace!
   })
 
   afterEach(async () => {

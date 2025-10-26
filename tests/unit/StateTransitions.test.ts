@@ -16,8 +16,12 @@ describe('State Transitions - Edge Cases', () => {
   beforeEach(async () => {
     redisClient = createRedisClient()
     pubSubClient = createRedisPubSubClient()
-    stateManager = new RedisStateManager(redisClient, pubSubClient)
-    await redisClient.flushdb()
+
+    // Use unique key prefix per test run to avoid race conditions in parallel execution
+    const uniquePrefix = `test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redisClient, pubSubClient, undefined, uniquePrefix)
+
+    // No need for flushdb() anymore - each test run has its own namespace!
   })
 
   afterEach(async () => {
