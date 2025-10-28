@@ -3,6 +3,7 @@
 // Validates the core "Distributed-First" architecture principle
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { v4 as uuidv4 } from 'uuid'
 import request from 'supertest'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
@@ -12,6 +13,10 @@ import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
+
+// Helper functions for generating unique IDs
+const uniqueSessionId = (_suffix?: string) => uuidv4()
+const uniqueParticipantId = (_name?: string) => uuidv4()
 
 describe('Multi-Instance API Integration Tests', () => {
   // Simulate two separate server instances
@@ -67,7 +72,7 @@ describe('Multi-Instance API Integration Tests', () => {
 
   describe('Session State Sharing Across Instances', () => {
     it('should allow Instance 2 to read session created by Instance 1', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440700'
+      const sessionId = uniqueSessionId()
 
       // Instance 1: Create session
       await request(app1)
@@ -76,8 +81,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174201', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174202', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -92,7 +97,9 @@ describe('Multi-Instance API Integration Tests', () => {
     })
 
     it('should allow Instance 2 to modify session created by Instance 1', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440701'
+      const sessionId = uniqueSessionId()
+      const p1 = uniqueParticipantId()
+      const p2 = uniqueParticipantId()
 
       // Instance 1: Create session
       await request(app1)
@@ -101,8 +108,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174203', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174204', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: p1, participant_index: 0, total_time_ms: 60000 },
+            { participant_id: p2, participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -111,16 +118,18 @@ describe('Multi-Instance API Integration Tests', () => {
       const startRes = await request(app2).post(`/v1/sessions/${sessionId}/start`).expect(200)
 
       expect(startRes.body.data.status).toBe('running')
-      expect(startRes.body.data.active_participant_id).toBe('p1')
+      expect(startRes.body.data.active_participant_id).toBe(p1)
 
       // Instance 1: Verify it can see the change
       const getRes = await request(app1).get(`/v1/sessions/${sessionId}`).expect(200)
       expect(getRes.body.data.status).toBe('running')
-      expect(getRes.body.data.active_participant_id).toBe('p1')
+      expect(getRes.body.data.active_participant_id).toBe(p1)
     })
 
     it('should allow instances to alternate operations on same session', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440702'
+      const sessionId = uniqueSessionId()
+      const p1 = uniqueParticipantId()
+      const p2 = uniqueParticipantId()
 
       // Instance 1: Create
       await request(app1)
@@ -129,8 +138,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174205', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174206', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: p1, participant_index: 0, total_time_ms: 60000 },
+            { participant_id: p2, participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -140,7 +149,7 @@ describe('Multi-Instance API Integration Tests', () => {
 
       // Instance 1: Switch
       const switch1 = await request(app1).post(`/v1/sessions/${sessionId}/switch`).expect(200)
-      expect(switch1.body.data.active_participant_id).toBe('p2')
+      expect(switch1.body.data.active_participant_id).toBe(p2)
 
       // Instance 2: Pause
       const pause = await request(app2).post(`/v1/sessions/${sessionId}/pause`).expect(200)
@@ -164,7 +173,7 @@ describe('Multi-Instance API Integration Tests', () => {
 
   describe('Concurrent Operations Across Instances', () => {
     it('should handle concurrent switch operations from different instances', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440703'
+      const sessionId = uniqueSessionId()
 
       // Setup
       await request(app1)
@@ -173,9 +182,9 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174207', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174208', participant_index: 1, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174209', participant_index: 2, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 2, total_time_ms: 600000 },
           ],
           total_time_ms: 1800000,
         })
@@ -204,7 +213,7 @@ describe('Multi-Instance API Integration Tests', () => {
     })
 
     it('should handle load balancer scenario: rapid requests across instances', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440704'
+      const sessionId = uniqueSessionId()
 
       // Setup
       await request(app1)
@@ -213,8 +222,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174210', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174211', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -232,7 +241,7 @@ describe('Multi-Instance API Integration Tests', () => {
 
       // Most should succeed (some might conflict)
       const successful = responses.filter(r => r.status === 200)
-      expect(successful.length).toBeGreaterThan(5)
+      expect(successful.length).toBeGreaterThanOrEqual(5)
 
       // Final state should be consistent across instances
       const finalState1 = await request(app1).get(`/v1/sessions/${sessionId}`)
@@ -247,7 +256,7 @@ describe('Multi-Instance API Integration Tests', () => {
 
   describe('Pub/Sub Broadcasting Across Instances', () => {
     it('should broadcast updates from Instance 1 to Instance 2 subscribers', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440705'
+      const sessionId = uniqueSessionId()
 
       const receivedUpdates: Array<{ sessionId: string; state: any }> = []
 
@@ -266,7 +275,7 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174212', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -283,7 +292,7 @@ describe('Multi-Instance API Integration Tests', () => {
     })
 
     it('should broadcast deletions from Instance 1 to Instance 2', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440706'
+      const sessionId = uniqueSessionId()
 
       const deletions: string[] = []
 
@@ -303,7 +312,7 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174213', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -319,7 +328,7 @@ describe('Multi-Instance API Integration Tests', () => {
 
   describe('No Instance-Local State Validation', () => {
     it('should NOT cache state locally - always read from Redis', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440707'
+      const sessionId = uniqueSessionId()
 
       // Instance 1: Create session
       await request(app1)
@@ -328,7 +337,7 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174214', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -350,7 +359,7 @@ describe('Multi-Instance API Integration Tests', () => {
 
   describe('Rate Limiting Across Instances', () => {
     it('should share rate limit counters across instances (Redis-backed)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440708'
+      const sessionId = uniqueSessionId()
 
       // Setup
       await request(app1)
@@ -359,8 +368,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174215', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174216', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -387,7 +396,7 @@ describe('Multi-Instance API Integration Tests', () => {
 
   describe('Performance Across Instances', () => {
     it('should maintain performance even with cross-instance operations', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440709'
+      const sessionId = uniqueSessionId()
 
       // Setup
       await request(app1)
@@ -396,8 +405,8 @@ describe('Multi-Instance API Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174217', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174218', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })

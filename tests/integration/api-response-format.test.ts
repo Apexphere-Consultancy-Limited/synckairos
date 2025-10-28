@@ -13,6 +13,10 @@ import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
 
+// Helper functions for generating unique IDs
+const uniqueSessionId = (_suffix?: string) => uuidv4()
+const uniqueParticipantId = (_name?: string) => uuidv4()
+
 describe('REST API Response Format Tests', () => {
   let app: Application
   let syncEngine: SyncEngine
@@ -133,7 +137,7 @@ describe('REST API Response Format Tests', () => {
   describe('Error Response Format', () => {
     it('should have consistent error structure for all error types', async () => {
       // 404 Not Found
-      const notFoundRes = await request(app).get('/v1/sessions/nonexistent-id').expect(404)
+      const notFoundRes = await request(app).get('/v1/sessions/84b42f87-7ef4-48b4-9e58-cd4f2092f5ec').expect(404)
       expect(notFoundRes.body).toHaveProperty('error')
       expect(notFoundRes.body.error).toHaveProperty('code')
       expect(notFoundRes.body.error).toHaveProperty('message')
@@ -195,7 +199,7 @@ describe('REST API Response Format Tests', () => {
       const originalEnv = process.env.NODE_ENV
       process.env.NODE_ENV = 'production'
 
-      const response = await request(app).get('/v1/sessions/nonexistent').expect(404)
+      const response = await request(app).get('/v1/sessions/ddc0be23-0415-448c-b89e-cf8e281d6324').expect(404)
 
       expect(response.body.error).not.toHaveProperty('stack')
 
@@ -208,7 +212,7 @@ describe('REST API Response Format Tests', () => {
       const originalEnv = process.env.NODE_ENV
       process.env.NODE_ENV = 'development'
 
-      const response = await request(app).get('/v1/sessions/nonexistent').expect(404)
+      const response = await request(app).get('/v1/sessions/ddc0be23-0415-448c-b89e-cf8e281d6324').expect(404)
 
       expect(response.body.error).toHaveProperty('stack')
 
@@ -303,7 +307,7 @@ describe('REST API Response Format Tests', () => {
       await request(app).delete(`/v1/sessions/${sessionId}`).expect(204)
 
       // 404 Not Found
-      await request(app).get('/v1/sessions/nonexistent').expect(404)
+      await request(app).get('/v1/sessions/ddc0be23-0415-448c-b89e-cf8e281d6324').expect(404)
 
       // 400 Bad Request
       await request(app)
