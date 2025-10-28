@@ -32,7 +32,8 @@ describe('Full Stack Integration Tests', () => {
 
     // Create RedisStateManager
     // Use unique prefix to avoid conflicts with parallel tests
-    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
 
     // Create SyncEngine
     syncEngine = new SyncEngine(stateManager)
