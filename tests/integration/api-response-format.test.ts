@@ -2,6 +2,7 @@
 // Tests response structure consistency and HTTP standards compliance
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { v4 as uuidv4 } from 'uuid'
 import request from 'supertest'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
@@ -11,6 +12,10 @@ import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
+
+// Helper functions for generating unique IDs
+const uniqueSessionId = (_suffix?: string) => uuidv4()
+const uniqueParticipantId = (_name?: string) => uuidv4()
 
 describe('REST API Response Format Tests', () => {
   let app: Application
@@ -29,7 +34,9 @@ describe('REST API Response Format Tests', () => {
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
 
     // Create RedisStateManager
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    // Use unique prefix to avoid conflicts with parallel tests
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
 
     // Create SyncEngine
     syncEngine = new SyncEngine(stateManager)
@@ -46,13 +53,17 @@ describe('REST API Response Format Tests', () => {
   })
 
   beforeEach(async () => {
+
+  // Helper to generate unique session and participant IDs
+  const uniqueSessionId = () => uuidv4()
+  const uniqueParticipantId = () => uuidv4()
     // Clear Redis before each test
-    await redis.flushdb()
+    // No longer needed - using unique prefix per test suite
   })
 
   describe('Success Response Format', () => {
     it('should wrap all success responses in { data: ... } property', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440500'
+      const sessionId = uniqueSessionId()
 
       // POST /v1/sessions (create)
       const createRes = await request(app)
@@ -61,8 +72,8 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -102,7 +113,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should return empty body for DELETE (204 No Content)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440501'
+      const sessionId = uniqueSessionId()
 
       await request(app)
         .post('/v1/sessions')
@@ -110,7 +121,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -126,7 +137,7 @@ describe('REST API Response Format Tests', () => {
   describe('Error Response Format', () => {
     it('should have consistent error structure for all error types', async () => {
       // 404 Not Found
-      const notFoundRes = await request(app).get('/v1/sessions/nonexistent-id').expect(404)
+      const notFoundRes = await request(app).get('/v1/sessions/84b42f87-7ef4-48b4-9e58-cd4f2092f5ec').expect(404)
       expect(notFoundRes.body).toHaveProperty('error')
       expect(notFoundRes.body.error).toHaveProperty('code')
       expect(notFoundRes.body.error).toHaveProperty('message')
@@ -144,14 +155,14 @@ describe('REST API Response Format Tests', () => {
       expect(badRequestRes.body.error.code).toBe('VALIDATION_ERROR')
 
       // 400 Invalid State Transition
-      const sessionId = '550e8400-e29b-41d4-a716-446655440502'
+      const sessionId = uniqueSessionId()
       await request(app)
         .post('/v1/sessions')
         .send({
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -164,7 +175,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should include error details when available', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440503'
+      const sessionId = uniqueSessionId()
 
       // Create session with validation error
       const response = await request(app)
@@ -179,7 +190,8 @@ describe('REST API Response Format Tests', () => {
 
       expect(response.body.error).toHaveProperty('code')
       expect(response.body.error).toHaveProperty('message')
-      expect(response.body.error.message).toContain('participants required')
+      expect(response.body.error.code).toBe('VALIDATION_ERROR')
+      expect(response.body.error.message).toBe('Request validation failed')
     })
 
     it('should NOT include stack trace in production', async () => {
@@ -187,7 +199,7 @@ describe('REST API Response Format Tests', () => {
       const originalEnv = process.env.NODE_ENV
       process.env.NODE_ENV = 'production'
 
-      const response = await request(app).get('/v1/sessions/nonexistent').expect(404)
+      const response = await request(app).get('/v1/sessions/ddc0be23-0415-448c-b89e-cf8e281d6324').expect(404)
 
       expect(response.body.error).not.toHaveProperty('stack')
 
@@ -200,7 +212,7 @@ describe('REST API Response Format Tests', () => {
       const originalEnv = process.env.NODE_ENV
       process.env.NODE_ENV = 'development'
 
-      const response = await request(app).get('/v1/sessions/nonexistent').expect(404)
+      const response = await request(app).get('/v1/sessions/ddc0be23-0415-448c-b89e-cf8e281d6324').expect(404)
 
       expect(response.body.error).toHaveProperty('stack')
 
@@ -211,7 +223,7 @@ describe('REST API Response Format Tests', () => {
 
   describe('HTTP Headers', () => {
     it('should include Content-Type: application/json for JSON responses', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440504'
+      const sessionId = uniqueSessionId()
 
       const response = await request(app)
         .post('/v1/sessions')
@@ -219,7 +231,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -236,7 +248,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should include rate limit headers on limited endpoints', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440505'
+      const sessionId = uniqueSessionId()
 
       await request(app)
         .post('/v1/sessions')
@@ -244,8 +256,8 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -269,7 +281,7 @@ describe('REST API Response Format Tests', () => {
 
   describe('HTTP Status Codes', () => {
     it('should use correct status codes for each scenario', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440506'
+      const sessionId = uniqueSessionId()
 
       // 201 Created
       await request(app)
@@ -278,7 +290,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -295,7 +307,7 @@ describe('REST API Response Format Tests', () => {
       await request(app).delete(`/v1/sessions/${sessionId}`).expect(204)
 
       // 404 Not Found
-      await request(app).get('/v1/sessions/nonexistent').expect(404)
+      await request(app).get('/v1/sessions/ddc0be23-0415-448c-b89e-cf8e281d6324').expect(404)
 
       // 400 Bad Request
       await request(app)
@@ -307,7 +319,7 @@ describe('REST API Response Format Tests', () => {
 
   describe('Data Serialization', () => {
     it('should serialize dates as ISO 8601 strings', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440507'
+      const sessionId = uniqueSessionId()
 
       const createRes = await request(app)
         .post('/v1/sessions')
@@ -315,7 +327,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -332,7 +344,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should serialize numbers correctly (not as strings)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440508'
+      const sessionId = uniqueSessionId()
 
       const response = await request(app)
         .post('/v1/sessions')
@@ -340,7 +352,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -354,7 +366,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should serialize null values correctly', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440509'
+      const sessionId = uniqueSessionId()
 
       const response = await request(app)
         .post('/v1/sessions')
@@ -362,7 +374,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })

@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { pool, healthCheck } from '@/config/database'
+import { v4 as uuidv4 } from 'uuid'
 
 describe('PostgreSQL Database', () => {
   beforeAll(async () => {
@@ -69,7 +70,7 @@ describe('PostgreSQL Database', () => {
   })
 
   it('should insert into sync_sessions', async () => {
-    const sessionId = `test-session-${Date.now()}`
+    const sessionId = uuidv4()
 
     await pool.query(`
       INSERT INTO sync_sessions (session_id, sync_mode, created_at)
@@ -90,7 +91,7 @@ describe('PostgreSQL Database', () => {
   })
 
   it('should insert into sync_events', async () => {
-    const sessionId = `test-session-${Date.now()}`
+    const sessionId = uuidv4()
 
     // First create session
     await pool.query(`
@@ -117,8 +118,8 @@ describe('PostgreSQL Database', () => {
   })
 
   it('should insert into sync_participants', async () => {
-    const sessionId = `test-session-${Date.now()}`
-    const participantId = `test-participant-${Date.now()}`
+    const sessionId = uuidv4()
+    const participantId = uuidv4()
 
     // First create session
     await pool.query(`
@@ -146,8 +147,8 @@ describe('PostgreSQL Database', () => {
   })
 
   it('should enforce unique_session_participant constraint', async () => {
-    const sessionId = `test-session-${Date.now()}`
-    const participantId = `test-participant-${Date.now()}`
+    const sessionId = uuidv4()
+    const participantId = uuidv4()
 
     // Create session
     await pool.query(`
@@ -197,7 +198,7 @@ describe('PostgreSQL Database', () => {
   })
 
   it('should store JSONB metadata correctly', async () => {
-    const sessionId = `test-session-${Date.now()}`
+    const sessionId = uuidv4()
     const metadata = {
       creator: 'test-user',
       source: 'integration-test',
@@ -221,7 +222,7 @@ describe('PostgreSQL Database', () => {
   })
 
   it('should store state_snapshot JSONB in sync_events', async () => {
-    const sessionId = `test-session-${Date.now()}`
+    const sessionId = uuidv4()
     const stateSnapshot = {
       session_id: sessionId,
       sync_mode: 'per_participant',
@@ -293,7 +294,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should reject invalid sync_mode values', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       await expect(
         pool.query(`
@@ -304,7 +305,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should reject invalid sync_status values', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       await pool.query(`
         INSERT INTO sync_sessions (session_id, sync_mode)
@@ -333,7 +334,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should enforce NOT NULL on sync_mode', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       await expect(
         pool.query(`
@@ -344,7 +345,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should apply DEFAULT values for integers', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       await pool.query(`
         INSERT INTO sync_sessions (session_id, sync_mode)
@@ -365,7 +366,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should apply DEFAULT for JSONB metadata', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       await pool.query(`
         INSERT INTO sync_sessions (session_id, sync_mode)
@@ -383,7 +384,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should auto-generate UUID for sync_events.id', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       // Create session first
       await pool.query(`
@@ -413,8 +414,9 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should set timestamp defaults to NOW()', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
       const before = new Date()
+      before.setMilliseconds(before.getMilliseconds() - 10) // Add 10ms buffer
 
       await pool.query(`
         INSERT INTO sync_sessions (session_id, sync_mode)
@@ -422,6 +424,7 @@ describe('PostgreSQL Database', () => {
       `, [sessionId, 'per_participant'])
 
       const after = new Date()
+      after.setMilliseconds(after.getMilliseconds() + 10) // Add 10ms buffer
 
       const result = await pool.query(`
         SELECT created_at, last_updated_at FROM sync_sessions WHERE session_id = $1
@@ -442,7 +445,7 @@ describe('PostgreSQL Database', () => {
 
   describe('Edge Cases and Boundaries', () => {
     it('should handle maximum VARCHAR(50) length for event_type', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
       const maxLengthEventType = 'a'.repeat(50)
 
       // Create session
@@ -471,7 +474,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should handle large JSONB state_snapshot', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       // Create session
       await pool.query(`
@@ -508,7 +511,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should handle negative integer values', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       await pool.query(`
         INSERT INTO sync_sessions (session_id, sync_mode, time_per_cycle_ms)
@@ -526,7 +529,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should handle very large integer values', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
       const largeValue = 2147483647 // Max 32-bit integer
 
       await pool.query(`
@@ -545,7 +548,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should handle NULL values for optional fields', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       await pool.query(`
         INSERT INTO sync_sessions (
@@ -572,7 +575,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should handle far future timestamps', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
       const farFuture = new Date('2099-12-31T23:59:59Z')
 
       await pool.query(`
@@ -592,7 +595,7 @@ describe('PostgreSQL Database', () => {
     })
 
     it('should handle empty JSONB object', async () => {
-      const sessionId = `test-session-${Date.now()}`
+      const sessionId = uuidv4()
 
       await pool.query(`
         INSERT INTO sync_sessions (session_id, sync_mode, metadata)

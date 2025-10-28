@@ -32,8 +32,9 @@ describe('WebSocket Server Integration Tests', () => {
     // Create DBWriteQueue
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
 
-    // Create RedisStateManager
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    // Use unique prefix to avoid conflicts with parallel tests
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
 
     // Create SyncEngine
     syncEngine = new SyncEngine(stateManager)
@@ -67,10 +68,7 @@ describe('WebSocket Server Integration Tests', () => {
     await pubSub.quit()
   })
 
-  beforeEach(async () => {
-    // Clear Redis before each test
-    await redis.flushdb()
-  })
+  // No need for beforeEach cleanup - using unique prefix per test suite
 
   describe('Connection Management', () => {
     it('should connect and receive CONNECTED message', async () => {
@@ -389,7 +387,8 @@ describe('Cross-Instance Broadcasting Tests', () => {
     const redis1 = createRedisClient()
     const pubSub1 = createRedisPubSubClient()
     const dbQueue1 = new DBWriteQueue(process.env.REDIS_URL!)
-    const stateManager1 = new RedisStateManager(redis1, pubSub1, dbQueue1)
+    const uniquePrefix1 = `integration-test:${Date.now()}-${Math.random()}:`
+    const stateManager1 = new RedisStateManager(redis1, pubSub1, dbQueue1, uniquePrefix1)
     const syncEngine1 = new SyncEngine(stateManager1)
 
     const server1 = http.createServer()
@@ -401,11 +400,11 @@ describe('Cross-Instance Broadcasting Tests', () => {
     const port1 = (server1.address() as any).port
     const url1 = `ws://localhost:${port1}/ws`
 
-    // Instance 2
+    // Instance 2 - MUST use same prefix to share Redis namespace
     const redis2 = createRedisClient()
     const pubSub2 = createRedisPubSubClient()
     const dbQueue2 = new DBWriteQueue(process.env.REDIS_URL!)
-    const stateManager2 = new RedisStateManager(redis2, pubSub2, dbQueue2)
+    const stateManager2 = new RedisStateManager(redis2, pubSub2, dbQueue2, uniquePrefix1)
     const syncEngine2 = new SyncEngine(stateManager2)
 
     const server2 = http.createServer()
@@ -421,9 +420,6 @@ describe('Cross-Instance Broadcasting Tests', () => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     try {
-      // Clear Redis
-      await redis1.flushdb()
-
       // Test scenario
       const sessionId = '550e8400-e29b-41d4-a716-446655440100'
 
@@ -530,7 +526,8 @@ describe('WebSocket Error Handling Tests', () => {
     redis = createRedisClient()
     pubSub = createRedisPubSubClient()
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
     syncEngine = new SyncEngine(stateManager)
     server = http.createServer()
     wsServer = new WebSocketServer(server, stateManager)
@@ -555,9 +552,7 @@ describe('WebSocket Error Handling Tests', () => {
     await pubSub.quit()
   })
 
-  beforeEach(async () => {
-    await redis.flushdb()
-  })
+  // No need for beforeEach cleanup - using unique prefix per test suite
 
   it('should handle malformed JSON messages gracefully', async () => {
     const sessionId = '550e8400-e29b-41d4-a716-446655440999'

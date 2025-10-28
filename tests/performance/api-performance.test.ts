@@ -2,6 +2,7 @@
 // Tests performance targets and latency percentiles
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { v4 as uuidv4 } from 'uuid'
 import request from 'supertest'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
@@ -29,7 +30,9 @@ describe('REST API Performance Tests', () => {
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
 
     // Create RedisStateManager
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    // Use unique prefix to avoid conflicts with parallel tests
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
 
     // Create SyncEngine
     syncEngine = new SyncEngine(stateManager)
@@ -46,13 +49,17 @@ describe('REST API Performance Tests', () => {
   })
 
   beforeEach(async () => {
+
+  // Helper to generate unique session and participant IDs
+  const uniqueSessionId = () => uuidv4()
+  const uniqueParticipantId = () => uuidv4()
     // Clear Redis before each test
-    await redis.flushdb()
+    // No longer needed - using unique prefix per test suite
   })
 
   describe('switchCycle Latency Percentiles', () => {
     it('should meet p50, p95, p99 latency targets', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440400'
+      const sessionId = uniqueSessionId()
 
       // Setup session
       await request(app)
@@ -61,8 +68,8 @@ describe('REST API Performance Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -112,8 +119,8 @@ describe('REST API Performance Tests', () => {
         session_id: `550e8400-e29b-41d4-a716-4466554404${i.toString().padStart(2, '0')}`,
         sync_mode: SyncMode.PER_PARTICIPANT,
         participants: [
-          { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-          { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+          { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+          { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
         ],
         total_time_ms: 120000,
       }))
@@ -155,8 +162,8 @@ describe('REST API Performance Tests', () => {
         session_id: `550e8400-e29b-41d4-a716-4466554405${i.toString().padStart(2, '0')}`,
         sync_mode: SyncMode.PER_PARTICIPANT,
         participants: [
-          { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-          { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+          { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+          { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
         ],
         total_time_ms: 120000,
       }))
@@ -191,7 +198,7 @@ describe('REST API Performance Tests', () => {
 
   describe('Endpoint Response Times', () => {
     it('GET /v1/sessions/:id should be fast (<10ms)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440450'
+      const sessionId = uniqueSessionId()
 
       // Setup session
       await request(app)
@@ -200,7 +207,7 @@ describe('REST API Performance Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -235,8 +242,8 @@ describe('REST API Performance Tests', () => {
             session_id: sessionId,
             sync_mode: SyncMode.PER_PARTICIPANT,
             participants: [
-              { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-              { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+              { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+              { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
             ],
             total_time_ms: 120000,
           })
@@ -257,7 +264,7 @@ describe('REST API Performance Tests', () => {
         session_id: `550e8400-e29b-41d4-a716-4466554406${i.toString().padStart(2, '0')}`,
         sync_mode: SyncMode.PER_PARTICIPANT,
         participants: [
-          { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+          { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
         ],
         total_time_ms: 60000,
       }))
@@ -293,7 +300,7 @@ describe('REST API Performance Tests', () => {
             session_id: sessionId,
             sync_mode: SyncMode.PER_PARTICIPANT,
             participants: [
-              { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
+              { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
             ],
             total_time_ms: 60000,
           })
@@ -308,7 +315,7 @@ describe('REST API Performance Tests', () => {
     })
 
     it('should maintain performance under sustained load', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440480'
+      const sessionId = uniqueSessionId()
 
       // Setup
       await request(app)
@@ -317,8 +324,8 @@ describe('REST API Performance Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 6000000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 6000000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 6000000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 6000000 },
           ],
           total_time_ms: 12000000,
         })

@@ -77,7 +77,7 @@ export function createMockSession(
  */
 export function createChessSession(sessionId?: string): SyncState {
   return createMockSession({
-    session_id: sessionId ?? 'chess-session-1',
+    session_id: sessionId ?? `chess-session-${Date.now()}-${Math.random()}`,
     sync_mode: SyncMode.PER_PARTICIPANT,
     increment_ms: 2000, // 2 second Fischer increment
     participants: [
@@ -103,7 +103,7 @@ export function createChessSession(sessionId?: string): SyncState {
 export function createRunningSession(sessionId?: string): SyncState {
   const now = new Date()
   const session = createMockSession({
-    session_id: sessionId ?? 'running-session-1',
+    session_id: sessionId ?? `running-session-${Date.now()}-${Math.random()}`,
     status: SyncStatus.RUNNING,
     active_participant_id: 'player1',
     cycle_started_at: now,
@@ -120,7 +120,7 @@ export function createRunningSession(sessionId?: string): SyncState {
  * Create a session with expired participant
  */
 export function createExpiredParticipantSession(): SyncState {
-  const session = createRunningSession('expired-session-1')
+  const session = createRunningSession(`expired-session-${Date.now()}-${Math.random()}`)
 
   // First participant has no time left
   session.participants[0].total_time_ms = 0
@@ -149,7 +149,7 @@ export function createMultiParticipantSession(numParticipants: number): SyncStat
   }
 
   return createMockSession({
-    session_id: 'multi-participant-session',
+    session_id: `multi-participant-session-${Date.now()}-${Math.random()}`,
     participants,
   })
 }
@@ -159,7 +159,7 @@ export function createMultiParticipantSession(numParticipants: number): SyncStat
  */
 export function createShortTimerSession(timeMs: number): SyncState {
   return createMockSession({
-    session_id: 'short-timer-session',
+    session_id: `short-timer-session-${Date.now()}-${Math.random()}`,
     participants: [
       createMockParticipant({
         participant_id: 'player1',

@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import request from 'supertest'
+import { v4 as uuidv4 } from 'uuid'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
 import { SyncEngine } from '@/engine/SyncEngine'
@@ -28,8 +29,9 @@ describe('REST API Integration Tests', () => {
     // Create DBWriteQueue
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
 
-    // Create RedisStateManager
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    // Use unique prefix to avoid conflicts with parallel tests
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
 
     // Create SyncEngine
     syncEngine = new SyncEngine(stateManager)
@@ -45,44 +47,50 @@ describe('REST API Integration Tests', () => {
     await pubSub.quit()
   })
 
-  beforeEach(async () => {
-    // Clear Redis before each test
-    await redis.flushdb()
-  })
+  // Helper to generate unique session IDs for each test (uses UUID v4)
+  const uniqueSessionId = (_suffix?: string) => uuidv4()
+
+  // Helper to generate unique participant IDs (uses UUID v4)
+  const uniqueParticipantId = (_name?: string) => uuidv4()
 
   describe('Session Lifecycle', () => {
     it('should create a new session', async () => {
+      const sessionId = uniqueSessionId('001')
       const response = await request(app)
         .post('/v1/sessions')
         .send({
-          session_id: '550e8400-e29b-41d4-a716-446655440001',
+          session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId('p1'), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId('p2'), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
-        .expect(201)
+
+      expect(response.status).toBe(201)
 
       expect(response.body.data).toBeDefined()
       expect(response.body.data.status).toBe('pending')
-      expect(response.body.data.session_id).toBe('550e8400-e29b-41d4-a716-446655440001')
+      expect(response.body.data.session_id).toBe(sessionId)
       expect(response.body.data.participants).toHaveLength(2)
       expect(response.body.data.participants[0].time_used_ms).toBe(0)
       expect(response.body.data.participants[0].is_active).toBe(false)
     })
 
     it('should complete full session lifecycle', async () => {
+      const p1 = uniqueParticipantId('p1')
+      const p2 = uniqueParticipantId('p2')
+
       // 1. Create session
       const createRes = await request(app)
         .post('/v1/sessions')
         .send({
-          session_id: '550e8400-e29b-41d4-a716-446655440002',
+          session_id: uniqueSessionId('02'),
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: p1, participant_index: 0, total_time_ms: 60000 },
+            { participant_id: p2, participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -94,7 +102,7 @@ describe('REST API Integration Tests', () => {
       const startRes = await request(app).post(`/v1/sessions/${sessionId}/start`).expect(200)
 
       expect(startRes.body.data.status).toBe('running')
-      expect(startRes.body.data.active_participant_id).toBe('p1')
+      expect(startRes.body.data.active_participant_id).toBe(p1)
       expect(startRes.body.data.cycle_started_at).toBeDefined()
       expect(startRes.body.data.session_started_at).toBeDefined()
       expect(startRes.body.data.participants[0].is_active).toBe(true)
@@ -110,7 +118,7 @@ describe('REST API Integration Tests', () => {
 
       const switchRes = await request(app).post(`/v1/sessions/${sessionId}/switch`).expect(200)
 
-      expect(switchRes.body.data.active_participant_id).toBe('p2')
+      expect(switchRes.body.data.active_participant_id).toBe(p2)
       expect(switchRes.body.data.participants[0].is_active).toBe(false)
       expect(switchRes.body.data.participants[1].is_active).toBe(true)
       expect(switchRes.body.data.participants[0].time_used_ms).toBeGreaterThan(90)
@@ -143,15 +151,19 @@ describe('REST API Integration Tests', () => {
     })
 
     it('should switch to explicit next participant', async () => {
+      const p1 = uniqueParticipantId('p1')
+      const p2 = uniqueParticipantId('p2')
+      const p3 = uniqueParticipantId('p3')
+
       const createRes = await request(app)
         .post('/v1/sessions')
         .send({
-          session_id: '550e8400-e29b-41d4-a716-446655440003',
+          session_id: uniqueSessionId('03'),
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
-            { participant_id: 'p3', participant_index: 2, total_time_ms: 60000 },
+            { participant_id: p1, participant_index: 0, total_time_ms: 60000 },
+            { participant_id: p2, participant_index: 1, total_time_ms: 60000 },
+            { participant_id: p3, participant_index: 2, total_time_ms: 60000 },
           ],
           total_time_ms: 180000,
         })
@@ -164,20 +176,21 @@ describe('REST API Integration Tests', () => {
       // Switch to p3 (skip p2)
       const switchRes = await request(app)
         .post(`/v1/sessions/${sessionId}/switch`)
-        .send({ next_participant_id: 'p3' })
+        .send({ next_participant_id: p3 })
         .expect(200)
 
-      expect(switchRes.body.data.active_participant_id).toBe('p3')
+      expect(switchRes.body.data.active_participant_id).toBe(p3)
     })
   })
 
   describe('Error Responses', () => {
     it('should return 404 for non-existent session', async () => {
-      const response = await request(app).get('/v1/sessions/non-existent-id').expect(404)
+      const nonExistentId = uuidv4()
+      const response = await request(app).get(`/v1/sessions/${nonExistentId}`).expect(404)
 
       expect(response.body.error).toBeDefined()
       expect(response.body.error.code).toBe('SESSION_NOT_FOUND')
-      expect(response.body.error.message).toContain('non-existent-id')
+      expect(response.body.error.message).toContain(nonExistentId)
     })
 
     it('should return 400 for invalid session creation', async () => {
@@ -198,9 +211,9 @@ describe('REST API Integration Tests', () => {
       const createRes = await request(app)
         .post('/v1/sessions')
         .send({
-          session_id: '550e8400-e29b-41d4-a716-446655440004',
+          session_id: uniqueSessionId('04'),
           sync_mode: SyncMode.PER_PARTICIPANT,
-          participants: [{ participant_id: 'p1', participant_index: 0, total_time_ms: 60000 }],
+          participants: [{ participant_id: uniqueParticipantId('p1'), participant_index: 0, total_time_ms: 60000 }],
           total_time_ms: 60000,
         })
         .expect(201)
@@ -219,9 +232,9 @@ describe('REST API Integration Tests', () => {
       const createRes = await request(app)
         .post('/v1/sessions')
         .send({
-          session_id: '550e8400-e29b-41d4-a716-446655440005',
+          session_id: uniqueSessionId('05'),
           sync_mode: SyncMode.PER_PARTICIPANT,
-          participants: [{ participant_id: 'p1', participant_index: 0, total_time_ms: 60000 }],
+          participants: [{ participant_id: uniqueParticipantId('p1'), participant_index: 0, total_time_ms: 60000 }],
           total_time_ms: 60000,
         })
         .expect(201)
@@ -274,11 +287,11 @@ describe('REST API Integration Tests', () => {
       const createRes = await request(app)
         .post('/v1/sessions')
         .send({
-          session_id: '550e8400-e29b-41d4-a716-446655440006',
+          session_id: uniqueSessionId('06'),
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId('p1'), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId('p2'), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -297,14 +310,17 @@ describe('REST API Integration Tests', () => {
     })
 
     it('should handle multiple rapid switches', async () => {
+      const p1 = uniqueParticipantId('p1')
+      const p2 = uniqueParticipantId('p2')
+
       const createRes = await request(app)
         .post('/v1/sessions')
         .send({
-          session_id: '550e8400-e29b-41d4-a716-446655440007',
+          session_id: uniqueSessionId('07'),
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: p1, participant_index: 0, total_time_ms: 600000 },
+            { participant_id: p2, participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -322,7 +338,7 @@ describe('REST API Integration Tests', () => {
       // Verify final state
       const state = await request(app).get(`/v1/sessions/${sessionId}`).expect(200)
 
-      expect(state.body.data.active_participant_id).toBe('p2') // Should be on p2 after 5 switches
+      expect(state.body.data.active_participant_id).toBe(p2) // Should be on p2 after 5 switches
     })
   })
 })

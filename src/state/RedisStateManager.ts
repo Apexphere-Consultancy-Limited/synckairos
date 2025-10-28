@@ -18,13 +18,19 @@ export class RedisStateManager {
   private redis: Redis
   private pubSubClient: Redis
   private dbQueue?: DBWriteQueue
-  private readonly SESSION_PREFIX = 'session:'
+  private readonly SESSION_PREFIX: string
   private readonly SESSION_TTL = 3600 // 1 hour in seconds
 
-  constructor(redisClient: Redis, pubSubClient: Redis, dbQueue?: DBWriteQueue) {
+  constructor(
+    redisClient: Redis,
+    pubSubClient: Redis,
+    dbQueue?: DBWriteQueue,
+    keyPrefix: string = 'session:' // Default for production, configurable for tests
+  ) {
     this.redis = redisClient
     this.pubSubClient = pubSubClient
     this.dbQueue = dbQueue
+    this.SESSION_PREFIX = keyPrefix
   }
 
   // CRUD Operations
