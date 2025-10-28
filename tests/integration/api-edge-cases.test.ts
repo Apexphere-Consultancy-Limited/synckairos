@@ -29,7 +29,8 @@ describe('REST API Edge Cases Tests', () => {
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
 
     // Create RedisStateManager
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    // Use unique prefix to avoid conflicts with parallel tests
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
 
     // Create SyncEngine
     syncEngine = new SyncEngine(stateManager)
@@ -47,7 +48,7 @@ describe('REST API Edge Cases Tests', () => {
 
   beforeEach(async () => {
     // Clear Redis before each test
-    await redis.flushdb()
+    // No longer needed - using unique prefix per test suite
   })
 
   describe('Participant Expiration', () => {

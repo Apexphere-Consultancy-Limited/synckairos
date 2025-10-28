@@ -1,7 +1,7 @@
 // RedisStateManager Unit Tests
 // Testing CRUD operations, optimistic locking, and Pub/Sub
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest'
 import { RedisStateManager } from '@/state/RedisStateManager'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode, SyncStatus, type SyncState } from '@/types/session'
@@ -17,10 +17,13 @@ describe('RedisStateManager - CRUD Operations', () => {
   let redisClient: Redis
   let pubSubClient: Redis
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    // Create Redis connections ONCE for all tests (avoids connection churn)
     redisClient = createRedisClient()
     pubSubClient = createRedisPubSubClient()
+  })
 
+  beforeEach(async () => {
     // Use unique key prefix per test run to avoid race conditions in parallel execution
     const uniquePrefix = `test:${Date.now()}-${Math.random()}:`
     stateManager = new RedisStateManager(redisClient, pubSubClient, undefined, uniquePrefix)
@@ -29,6 +32,14 @@ describe('RedisStateManager - CRUD Operations', () => {
   })
 
   afterEach(async () => {
+    // Clean up pub/sub event listeners to prevent accumulation across tests
+    // (pubSubClient is shared across all tests via beforeAll)
+    pubSubClient.removeAllListeners('message')
+    pubSubClient.removeAllListeners('pmessage')
+  })
+
+  afterAll(async () => {
+    // Close connections ONCE after all tests complete
     await stateManager.close()
   })
 

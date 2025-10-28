@@ -25,18 +25,12 @@ describe('Multi-Instance Cross-Communication', () => {
     redis2 = createRedisClient()
     pubSub2 = createRedisPubSubClient()
 
-    // Use a different Redis database to avoid conflicts with other tests
-    await redis1.select(1)
-    await redis2.select(1)
-    await pubSub1.select(1)
-    await pubSub2.select(1)
+    // Use unique prefix (both instances must share same namespace to test multi-instance)
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
 
-    // Clear this database
-    await redis1.flushdb()
-
-    // Create managers after selecting database
-    instance1 = new RedisStateManager(redis1, pubSub1)
-    instance2 = new RedisStateManager(redis2, pubSub2)
+    // Create managers with shared prefix for multi-instance testing
+    instance1 = new RedisStateManager(redis1, pubSub1, undefined, uniquePrefix)
+    instance2 = new RedisStateManager(redis2, pubSub2, undefined, uniquePrefix)
   })
 
   afterAll(async () => {

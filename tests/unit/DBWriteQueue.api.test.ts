@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { v4 as uuidv4 } from 'uuid'
 import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { SyncState } from '@/types/session'
@@ -29,74 +29,90 @@ const createTestState = (sessionId: string): SyncState => ({
 })
 
 describe('DBWriteQueue - API', () => {
-  let queue: DBWriteQueue
+  // Create a unique queue instance for each test to avoid parallel execution conflicts
+  const createQueue = () => new DBWriteQueue(process.env.REDIS_URL!)
 
-  beforeEach(() => {
-    queue = new DBWriteQueue(process.env.REDIS_URL!)
-  })
-
-  afterEach(async () => {
-    if (queue) {
-      // Wait briefly for any pending jobs
-      await new Promise(resolve => setTimeout(resolve, 500))
-      await queue.close(true) // Force close - don't wait for active jobs
+  it('should initialize queue successfully', async () => {
+    const queue = createQueue()
+    try {
+      const metrics = await queue.getMetrics()
+      expect(metrics).toBeDefined()
+      expect(metrics.waiting).toBeGreaterThanOrEqual(0)
+    } finally {
+      await queue.close(true)
     }
   })
 
-  it('should initialize queue successfully', async () => {
-    const metrics = await queue.getMetrics()
-    expect(metrics).toBeDefined()
-    expect(metrics.waiting).toBeGreaterThanOrEqual(0)
-  })
-
   it('should queue a write job', async () => {
-    const sessionId = uuidv4()
-    const state = createTestState(sessionId)
+    const queue = createQueue()
+    try {
+      const sessionId = uuidv4()
+      const state = createTestState(sessionId)
 
-    await queue.queueWrite(sessionId, state, 'session_created')
+      await queue.queueWrite(sessionId, state, 'session_created')
 
-    const metrics = await queue.getMetrics()
-    expect(metrics.waiting + metrics.active).toBeGreaterThan(0)
+      const metrics = await queue.getMetrics()
+      expect(metrics.waiting + metrics.active).toBeGreaterThan(0)
+    } finally {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await queue.close(true)
+    }
   })
 
   it('should return queue metrics', async () => {
-    const metrics = await queue.getMetrics()
+    const queue = createQueue()
+    try {
+      const metrics = await queue.getMetrics()
 
-    expect(metrics).toEqual({
-      waiting: expect.any(Number),
-      active: expect.any(Number),
-      completed: expect.any(Number),
-      failed: expect.any(Number),
-      delayed: expect.any(Number),
-    })
+      expect(metrics).toEqual({
+        waiting: expect.any(Number),
+        active: expect.any(Number),
+        completed: expect.any(Number),
+        failed: expect.any(Number),
+        delayed: expect.any(Number),
+      })
+    } finally {
+      await queue.close(true)
+    }
   })
 
   it('should accept multiple job types', async () => {
-    const sessionId = uuidv4()
-    const state = createTestState(sessionId)
+    const queue = createQueue()
+    try {
+      const sessionId = uuidv4()
+      const state = createTestState(sessionId)
 
-    await queue.queueWrite(sessionId, state, 'session_created')
-    await queue.queueWrite(sessionId, state, 'session_started')
-    await queue.queueWrite(sessionId, state, 'cycle_switched')
+      await queue.queueWrite(sessionId, state, 'session_created')
+      await queue.queueWrite(sessionId, state, 'session_started')
+      await queue.queueWrite(sessionId, state, 'cycle_switched')
 
-    const metrics = await queue.getMetrics()
-    // Jobs may be processed quickly, so check total across all states
-    expect(metrics.waiting + metrics.active + metrics.completed).toBeGreaterThanOrEqual(3)
+      const metrics = await queue.getMetrics()
+      // Jobs may be processed quickly, so check total across all states
+      expect(metrics.waiting + metrics.active + metrics.completed).toBeGreaterThanOrEqual(3)
+    } finally {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await queue.close(true)
+    }
   })
 
   it('should close queue and worker cleanly', async () => {
+    const queue = createQueue()
     await expect(queue.close(true)).resolves.not.toThrow()
-    // Set queue to null so afterEach doesn't try to close again
-    queue = null as any
   })
 
   it('should track waiting jobs', async () => {
-    const sessionId = uuidv4()
-    const state = createTestState(sessionId)
+    const queue = createQueue()
+    try {
+      const sessionId = uuidv4()
+      const state = createTestState(sessionId)
 
-    await queue.queueWrite(sessionId, state, 'session_created')
+      await queue.queueWrite(sessionId, state, 'session_created')
 
-    const metrics = await queue.getMetrics()
-    expect(metrics.waiting + metrics.active).toBeGreaterThan(0)
+      const metrics = await queue.getMetrics()
+      expect(metrics.waiting + metrics.active).toBeGreaterThan(0)
+    } finally {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await queue.close(true)
+    }
   })
 })

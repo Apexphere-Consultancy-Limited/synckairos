@@ -31,7 +31,8 @@ describe('Full Stack Integration Tests', () => {
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
 
     // Create RedisStateManager
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    // Use unique prefix to avoid conflicts with parallel tests
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
 
     // Create SyncEngine
     syncEngine = new SyncEngine(stateManager)
@@ -50,7 +51,7 @@ describe('Full Stack Integration Tests', () => {
 
   beforeEach(async () => {
     // Clear Redis and PostgreSQL before each test
-    await redis.flushdb()
+    // No longer needed - using unique prefix per test suite
     // Note: DBWriteQueue is async, so we can't easily clear audit tables
   })
 

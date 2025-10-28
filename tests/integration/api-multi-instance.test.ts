@@ -33,19 +33,22 @@ describe('Multi-Instance API Integration Tests', () => {
   let stateManager2: RedisStateManager
 
   beforeAll(async () => {
+    // Use unique prefix (both instances must share same namespace to test multi-instance)
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+
     // Create Instance 1
     redis1 = createRedisClient()
     pubSub1 = createRedisPubSubClient()
     dbQueue1 = new DBWriteQueue(process.env.REDIS_URL!)
-    stateManager1 = new RedisStateManager(redis1, pubSub1, dbQueue1)
+    stateManager1 = new RedisStateManager(redis1, pubSub1, dbQueue1, uniquePrefix)
     syncEngine1 = new SyncEngine(stateManager1)
     app1 = createApp({ syncEngine: syncEngine1 })
 
-    // Create Instance 2 (separate connections, same Redis)
+    // Create Instance 2 (separate connections, same Redis, SAME prefix)
     redis2 = createRedisClient()
     pubSub2 = createRedisPubSubClient()
     dbQueue2 = new DBWriteQueue(process.env.REDIS_URL!)
-    stateManager2 = new RedisStateManager(redis2, pubSub2, dbQueue2)
+    stateManager2 = new RedisStateManager(redis2, pubSub2, dbQueue2, uniquePrefix)
     syncEngine2 = new SyncEngine(stateManager2)
     app2 = createApp({ syncEngine: syncEngine2 })
   })
@@ -60,10 +63,7 @@ describe('Multi-Instance API Integration Tests', () => {
     await pubSub2.quit()
   })
 
-  beforeEach(async () => {
-    // Clear Redis before each test
-    await redis1.flushdb()
-  })
+  // No need for beforeEach cleanup - using unique prefix per test suite
 
   describe('Session State Sharing Across Instances', () => {
     it('should allow Instance 2 to read session created by Instance 1', async () => {

@@ -40,7 +40,9 @@ describe('RedisStateManager + DBWriteQueue Integration', () => {
     redis = createRedisClient()
     pubSub = createRedisPubSubClient()
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    // Use unique prefix to avoid conflicts with parallel tests
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
   })
 
   afterAll(async () => {
@@ -224,7 +226,8 @@ describe('RedisStateManager + DBWriteQueue Integration', () => {
 
   it('should work correctly when DBWriteQueue is not provided', async () => {
     // Create state manager without DBWriteQueue
-    const stateManagerWithoutQueue = new RedisStateManager(redis, pubSub)
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    const stateManagerWithoutQueue = new RedisStateManager(redis, pubSub, undefined, uniquePrefix)
 
     const state = createTestState('integration-test-7')
 

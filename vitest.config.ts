@@ -8,11 +8,11 @@ export default defineConfig({
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: false, // Enable parallel execution for isolated tests
+        singleFork: false, // Allow tests within a file to run in parallel
       },
     },
-    // Run tests in parallel by default
-    fileParallelism: true,
+    // Run test FILES sequentially to avoid cross-file race conditions
+    fileParallelism: false,
     // Exclude performance tests from default test runs
     // Performance tests should be run explicitly via `pnpm test:performance`
     exclude: ['**/node_modules/**', '**/dist/**', '**/tests/performance/**'],

@@ -28,8 +28,9 @@ describe('REST API Integration Tests', () => {
     // Create DBWriteQueue
     dbQueue = new DBWriteQueue(process.env.REDIS_URL!)
 
-    // Create RedisStateManager
-    stateManager = new RedisStateManager(redis, pubSub, dbQueue)
+    // Use unique prefix to avoid conflicts with parallel tests
+    const uniquePrefix = `integration-test:${Date.now()}-${Math.random()}:`
+    stateManager = new RedisStateManager(redis, pubSub, dbQueue, uniquePrefix)
 
     // Create SyncEngine
     syncEngine = new SyncEngine(stateManager)
@@ -45,10 +46,7 @@ describe('REST API Integration Tests', () => {
     await pubSub.quit()
   })
 
-  beforeEach(async () => {
-    // Clear Redis before each test
-    await redis.flushdb()
-  })
+  // No need for beforeEach cleanup - each test suite has its own Redis namespace via unique prefix
 
   describe('Session Lifecycle', () => {
     it('should create a new session', async () => {
