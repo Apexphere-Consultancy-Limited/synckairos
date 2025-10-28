@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import request from 'supertest'
+import { v4 as uuidv4 } from 'uuid'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
 import { SyncEngine } from '@/engine/SyncEngine'
@@ -52,9 +53,15 @@ describe('REST API Concurrency Tests', () => {
     // No longer needed - using unique prefix per test suite
   })
 
+  // Helper to generate unique session and participant IDs
+  const uniqueSessionId = () => uuidv4()
+  const uniqueParticipantId = () => uuidv4()
+
   describe('Concurrent switchCycle Operations', () => {
     it('should handle concurrent switchCycle calls gracefully', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440200'
+      const sessionId = uniqueSessionId()
+      const p1 = uniqueParticipantId()
+      const p2 = uniqueParticipantId()
 
       // Create and start session
       await request(app)
@@ -63,9 +70,9 @@ describe('REST API Concurrency Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174201', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174202', participant_index: 1, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174203', participant_index: 2, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 2, total_time_ms: 600000 },
           ],
           total_time_ms: 1800000,
         })
@@ -93,7 +100,7 @@ describe('REST API Concurrency Tests', () => {
     })
 
     it('should return 409 with proper error details on version conflict', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440201'
+      const sessionId = uniqueSessionId()
 
       // Create and start session
       await request(app)
@@ -102,8 +109,8 @@ describe('REST API Concurrency Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174204', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174205', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -128,7 +135,7 @@ describe('REST API Concurrency Tests', () => {
     })
 
     it('should maintain data consistency under concurrent load', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440202'
+      const sessionId = uniqueSessionId()
 
       // Create session with 2 participants
       await request(app)
@@ -137,8 +144,8 @@ describe('REST API Concurrency Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174206', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174207', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -170,14 +177,14 @@ describe('REST API Concurrency Tests', () => {
 
   describe('Concurrent Session Creation', () => {
     it('should handle concurrent session creation for same ID', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440203'
+      const sessionId = uniqueSessionId()
 
       const sessionConfig = {
         session_id: sessionId,
         sync_mode: SyncMode.PER_PARTICIPANT,
         participants: [
-          { participant_id: '223e4567-e89b-12d3-a456-426614174208', participant_index: 0, total_time_ms: 60000 },
-          { participant_id: '223e4567-e89b-12d3-a456-426614174209', participant_index: 1, total_time_ms: 60000 },
+          { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+          { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
         ],
         total_time_ms: 120000,
       }
@@ -201,7 +208,7 @@ describe('REST API Concurrency Tests', () => {
 
   describe('Concurrent State Transitions', () => {
     it('should prevent concurrent start operations', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440204'
+      const sessionId = uniqueSessionId()
 
       // Create session
       await request(app)
@@ -210,7 +217,7 @@ describe('REST API Concurrency Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174210', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -232,7 +239,7 @@ describe('REST API Concurrency Tests', () => {
     })
 
     it('should handle concurrent pause/resume operations', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440205'
+      const sessionId = uniqueSessionId()
 
       // Create and start session
       await request(app)
@@ -241,7 +248,7 @@ describe('REST API Concurrency Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174211', participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
           ],
           total_time_ms: 600000,
         })
@@ -265,7 +272,7 @@ describe('REST API Concurrency Tests', () => {
 
   describe('Optimistic Locking Validation', () => {
     it('should increment version on each update', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440206'
+      const sessionId = uniqueSessionId()
 
       // Create session
       await request(app)
@@ -274,8 +281,8 @@ describe('REST API Concurrency Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174212', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174213', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -300,7 +307,7 @@ describe('REST API Concurrency Tests', () => {
     })
 
     it('should detect stale updates via version mismatch', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440207'
+      const sessionId = uniqueSessionId()
 
       // Create and start session
       await request(app)
@@ -309,8 +316,8 @@ describe('REST API Concurrency Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174214', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174215', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
