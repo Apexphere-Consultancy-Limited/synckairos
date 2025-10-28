@@ -2,6 +2,7 @@
 // Tests rate limiting behavior for API endpoints
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { v4 as uuidv4 } from 'uuid'
 import request from 'supertest'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
@@ -48,6 +49,10 @@ describe('REST API Rate Limiting Tests', () => {
   })
 
   beforeEach(async () => {
+
+  // Helper to generate unique session and participant IDs
+  const uniqueSessionId = () => uuidv4()
+  const uniqueParticipantId = () => uuidv4()
     // Clear Redis before each test (including rate limit counters)
     // No longer needed - using unique prefix per test suite
   })
@@ -55,15 +60,15 @@ describe('REST API Rate Limiting Tests', () => {
   describe('Switch Cycle Rate Limiting', () => {
     it('should return 429 when switchCycle rate limit exceeded (10 req/sec per session)', async () => {
       // Create session
-      const sessionId = '550e8400-e29b-41d4-a716-446655440100'
+      const sessionId = uniqueSessionId()
       await request(app)
         .post('/v1/sessions')
         .send({
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -94,7 +99,7 @@ describe('REST API Rate Limiting Tests', () => {
     })
 
     it('should reset rate limit after window expires', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440101'
+      const sessionId = uniqueSessionId()
 
       // Create and start session
       await request(app)
@@ -103,8 +108,8 @@ describe('REST API Rate Limiting Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -141,8 +146,8 @@ describe('REST API Rate Limiting Tests', () => {
             session_id: sessionId,
             sync_mode: SyncMode.PER_PARTICIPANT,
             participants: [
-              { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-              { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+              { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+              { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
             ],
             total_time_ms: 1200000,
           })
@@ -216,7 +221,7 @@ describe('REST API Rate Limiting Tests', () => {
 
   describe('Rate Limit Headers', () => {
     it('should include rate limit headers in response', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440104'
+      const sessionId = uniqueSessionId()
 
       // Create and start session
       await request(app)
@@ -225,8 +230,8 @@ describe('REST API Rate Limiting Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: 'p1', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: 'p2', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })

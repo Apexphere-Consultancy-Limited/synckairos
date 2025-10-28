@@ -2,6 +2,7 @@
 // Tests response structure consistency and HTTP standards compliance
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { v4 as uuidv4 } from 'uuid'
 import request from 'supertest'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
@@ -48,13 +49,17 @@ describe('REST API Response Format Tests', () => {
   })
 
   beforeEach(async () => {
+
+  // Helper to generate unique session and participant IDs
+  const uniqueSessionId = () => uuidv4()
+  const uniqueParticipantId = () => uuidv4()
     // Clear Redis before each test
     // No longer needed - using unique prefix per test suite
   })
 
   describe('Success Response Format', () => {
     it('should wrap all success responses in { data: ... } property', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440500'
+      const sessionId = uniqueSessionId()
 
       // POST /v1/sessions (create)
       const createRes = await request(app)
@@ -63,8 +68,8 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174201', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174202', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -104,7 +109,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should return empty body for DELETE (204 No Content)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440501'
+      const sessionId = uniqueSessionId()
 
       await request(app)
         .post('/v1/sessions')
@@ -112,7 +117,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174203', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -146,14 +151,14 @@ describe('REST API Response Format Tests', () => {
       expect(badRequestRes.body.error.code).toBe('VALIDATION_ERROR')
 
       // 400 Invalid State Transition
-      const sessionId = '550e8400-e29b-41d4-a716-446655440502'
+      const sessionId = uniqueSessionId()
       await request(app)
         .post('/v1/sessions')
         .send({
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174204', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -166,7 +171,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should include error details when available', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440503'
+      const sessionId = uniqueSessionId()
 
       // Create session with validation error
       const response = await request(app)
@@ -214,7 +219,7 @@ describe('REST API Response Format Tests', () => {
 
   describe('HTTP Headers', () => {
     it('should include Content-Type: application/json for JSON responses', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440504'
+      const sessionId = uniqueSessionId()
 
       const response = await request(app)
         .post('/v1/sessions')
@@ -222,7 +227,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174205', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -239,7 +244,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should include rate limit headers on limited endpoints', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440505'
+      const sessionId = uniqueSessionId()
 
       await request(app)
         .post('/v1/sessions')
@@ -247,8 +252,8 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174206', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174207', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -272,7 +277,7 @@ describe('REST API Response Format Tests', () => {
 
   describe('HTTP Status Codes', () => {
     it('should use correct status codes for each scenario', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440506'
+      const sessionId = uniqueSessionId()
 
       // 201 Created
       await request(app)
@@ -281,7 +286,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174208', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -310,7 +315,7 @@ describe('REST API Response Format Tests', () => {
 
   describe('Data Serialization', () => {
     it('should serialize dates as ISO 8601 strings', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440507'
+      const sessionId = uniqueSessionId()
 
       const createRes = await request(app)
         .post('/v1/sessions')
@@ -318,7 +323,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174209', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -335,7 +340,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should serialize numbers correctly (not as strings)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440508'
+      const sessionId = uniqueSessionId()
 
       const response = await request(app)
         .post('/v1/sessions')
@@ -343,7 +348,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174210', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -357,7 +362,7 @@ describe('REST API Response Format Tests', () => {
     })
 
     it('should serialize null values correctly', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440509'
+      const sessionId = uniqueSessionId()
 
       const response = await request(app)
         .post('/v1/sessions')
@@ -365,7 +370,7 @@ describe('REST API Response Format Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174211', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })

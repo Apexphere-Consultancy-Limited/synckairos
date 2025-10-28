@@ -3,6 +3,7 @@
 // HTTP → Express → SyncEngine → RedisStateManager → Redis + DBWriteQueue → PostgreSQL
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { v4 as uuidv4 } from 'uuid'
 import request from 'supertest'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
@@ -51,6 +52,10 @@ describe('Full Stack Integration Tests', () => {
   })
 
   beforeEach(async () => {
+
+  // Helper to generate unique session and participant IDs
+  const uniqueSessionId = () => uuidv4()
+  const uniqueParticipantId = () => uuidv4()
     // Clear Redis and PostgreSQL before each test
     // No longer needed - using unique prefix per test suite
     // Note: DBWriteQueue is async, so we can't easily clear audit tables
@@ -58,7 +63,7 @@ describe('Full Stack Integration Tests', () => {
 
   describe('Complete Session Lifecycle with Audit Trail', () => {
     it('should create session in Redis AND queue audit write to PostgreSQL', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440600'
+      const sessionId = uniqueSessionId()
 
       // Create session via API
       const createRes = await request(app)
@@ -67,8 +72,8 @@ describe('Full Stack Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174201', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174202', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -94,7 +99,7 @@ describe('Full Stack Integration Tests', () => {
     })
 
     it('should maintain Redis as PRIMARY and PostgreSQL as AUDIT throughout lifecycle', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440601'
+      const sessionId = uniqueSessionId()
 
       // 1. Create
       await request(app)
@@ -103,8 +108,8 @@ describe('Full Stack Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174203', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174204', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -137,7 +142,7 @@ describe('Full Stack Integration Tests', () => {
 
   describe('Redis Pub/Sub Integration with API', () => {
     it('should broadcast state updates via Redis Pub/Sub when API updates session', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440602'
+      const sessionId = uniqueSessionId()
 
       const receivedUpdates: Array<{ sessionId: string; state: any }> = []
 
@@ -156,7 +161,7 @@ describe('Full Stack Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174205', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -176,7 +181,7 @@ describe('Full Stack Integration Tests', () => {
 
   describe('Multi-Instance API Integration', () => {
     it('should handle requests from "different instances" sharing same Redis', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440603'
+      const sessionId = uniqueSessionId()
 
       // Simulate Instance 1: Create and start session
       await request(app)
@@ -185,8 +190,8 @@ describe('Full Stack Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174206', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174207', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -217,7 +222,7 @@ describe('Full Stack Integration Tests', () => {
     })
 
     it('should propagate ConcurrencyError from RedisStateManager → SyncEngine → API', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440604'
+      const sessionId = uniqueSessionId()
 
       // Create and start session
       await request(app)
@@ -226,8 +231,8 @@ describe('Full Stack Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174208', participant_index: 0, total_time_ms: 60000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174209', participant_index: 1, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 60000 },
           ],
           total_time_ms: 120000,
         })
@@ -255,7 +260,7 @@ describe('Full Stack Integration Tests', () => {
           session_id: 'invalid-uuid-format',
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174210', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -268,7 +273,7 @@ describe('Full Stack Integration Tests', () => {
 
   describe('Performance Through Full Stack', () => {
     it('should maintain <50ms latency through entire stack (HTTP → Redis)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440605'
+      const sessionId = uniqueSessionId()
 
       // Setup
       await request(app)
@@ -277,8 +282,8 @@ describe('Full Stack Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174211', participant_index: 0, total_time_ms: 600000 },
-            { participant_id: '223e4567-e89b-12d3-a456-426614174212', participant_index: 1, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 600000 },
+            { participant_id: uniqueParticipantId(), participant_index: 1, total_time_ms: 600000 },
           ],
           total_time_ms: 1200000,
         })
@@ -306,7 +311,7 @@ describe('Full Stack Integration Tests', () => {
 
   describe('Data Consistency Across Layers', () => {
     it('should maintain version consistency through API → SyncEngine → RedisStateManager', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440606'
+      const sessionId = uniqueSessionId()
 
       // Create (version should be 1)
       const createRes = await request(app)
@@ -315,7 +320,7 @@ describe('Full Stack Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174213', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -341,7 +346,7 @@ describe('Full Stack Integration Tests', () => {
     })
 
     it('should maintain participant state consistency across all layers', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440607'
+      const sessionId = uniqueSessionId()
 
       // Create with specific participant state
       await request(app)
@@ -383,7 +388,7 @@ describe('Full Stack Integration Tests', () => {
 
   describe('Graceful Degradation', () => {
     it('should handle Redis slowness gracefully (still under 100ms)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440608'
+      const sessionId = uniqueSessionId()
 
       await request(app)
         .post('/v1/sessions')
@@ -391,7 +396,7 @@ describe('Full Stack Integration Tests', () => {
           session_id: sessionId,
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174214', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })

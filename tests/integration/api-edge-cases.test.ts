@@ -2,6 +2,7 @@
 // Tests edge cases and boundary conditions
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { v4 as uuidv4 } from 'uuid'
 import request from 'supertest'
 import { Application } from 'express'
 import { createApp } from '@/api/app'
@@ -48,13 +49,17 @@ describe('REST API Edge Cases Tests', () => {
   })
 
   beforeEach(async () => {
+
+  // Helper to generate unique session and participant IDs
+  const uniqueSessionId = () => uuidv4()
+  const uniqueParticipantId = () => uuidv4()
     // Clear Redis before each test
     // No longer needed - using unique prefix per test suite
   })
 
   describe('Participant Expiration', () => {
     it('should handle participant time expiration correctly', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440300'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174001'
       const p2 = '223e4567-e89b-12d3-a456-426614174002'
 
@@ -90,7 +95,7 @@ describe('REST API Edge Cases Tests', () => {
     })
 
     it('should not add increment time to expired participant', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440301'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174003'
       const p2 = '223e4567-e89b-12d3-a456-426614174004'
 
@@ -126,7 +131,7 @@ describe('REST API Edge Cases Tests', () => {
           session_id: 'not-a-uuid',
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174005', participant_index: 0, total_time_ms: 60000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 60000 },
           ],
           total_time_ms: 60000,
         })
@@ -158,7 +163,7 @@ describe('REST API Edge Cases Tests', () => {
           session_id: '550e8400-e29b-41d4-a716-446655440303',
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174006', participant_index: 0, total_time_ms: -1000 },
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: -1000 },
           ],
           total_time_ms: -1000,
         })
@@ -174,7 +179,7 @@ describe('REST API Edge Cases Tests', () => {
           session_id: '550e8400-e29b-41d4-a716-446655440304',
           sync_mode: SyncMode.PER_PARTICIPANT,
           participants: [
-            { participant_id: '223e4567-e89b-12d3-a456-426614174007', participant_index: 0, total_time_ms: 500 }, // <1 second
+            { participant_id: uniqueParticipantId(), participant_index: 0, total_time_ms: 500 }, // <1 second
           ],
           total_time_ms: 500,
         })
@@ -205,7 +210,7 @@ describe('REST API Edge Cases Tests', () => {
 
   describe('Boundary Conditions', () => {
     it('should handle single participant session', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440306'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174009'
 
       await request(app)
@@ -231,7 +236,7 @@ describe('REST API Edge Cases Tests', () => {
     })
 
     it('should handle large participant count (100+)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440307'
+      const sessionId = uniqueSessionId()
 
       const participants = Array.from({ length: 100 }, (_, i) => ({
         participant_id: `223e4567-e89b-12d3-a456-${String(426614174010 + i).padStart(12, '0')}`,
@@ -261,7 +266,7 @@ describe('REST API Edge Cases Tests', () => {
     })
 
     it('should handle very short cycle times (100ms)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440308'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174110'
       const p2 = '223e4567-e89b-12d3-a456-426614174111'
 
@@ -287,7 +292,7 @@ describe('REST API Edge Cases Tests', () => {
     })
 
     it('should handle maximum time values (24 hours)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440309'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174112'
       const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
 
@@ -309,7 +314,7 @@ describe('REST API Edge Cases Tests', () => {
 
   describe('Invalid State Transitions', () => {
     it('should reject switching a paused session', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440310'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174113'
       const p2 = '223e4567-e89b-12d3-a456-426614174114'
 
@@ -338,7 +343,7 @@ describe('REST API Edge Cases Tests', () => {
     })
 
     it('should reject pausing a completed session', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440311'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174115'
 
       // Create, start, complete
@@ -364,7 +369,7 @@ describe('REST API Edge Cases Tests', () => {
     })
 
     it('should reject resuming a running session', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440312'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174116'
 
       // Create and start
@@ -390,7 +395,7 @@ describe('REST API Edge Cases Tests', () => {
     })
 
     it('should allow operations on completed session (GET only)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440313'
+      const sessionId = uniqueSessionId()
       const p1 = '223e4567-e89b-12d3-a456-426614174117'
 
       // Create, start, complete
@@ -418,7 +423,7 @@ describe('REST API Edge Cases Tests', () => {
 
   describe('Special Characters and Unicode', () => {
     it('should reject participant IDs with special characters (must be UUID)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440314'
+      const sessionId = uniqueSessionId()
 
       const response = await request(app)
         .post('/v1/sessions')
@@ -438,7 +443,7 @@ describe('REST API Edge Cases Tests', () => {
     })
 
     it('should reject Unicode participant IDs (must be UUID)', async () => {
-      const sessionId = '550e8400-e29b-41d4-a716-446655440315'
+      const sessionId = uniqueSessionId()
 
       const response = await request(app)
         .post('/v1/sessions')
