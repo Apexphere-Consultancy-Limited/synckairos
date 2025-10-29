@@ -25,27 +25,32 @@ if check_server; then
 else
   echo "🚀 Server not detected, starting server..."
 
-  # Check if Docker is running
-  if ! docker info &> /dev/null; then
-    echo "❌ Docker is not running!"
-    echo "Please start Docker Desktop and try again."
-    exit 1
-  fi
+  # Only start Docker services if not in CI (CI provides services via GitHub Actions)
+  if [ -z "$CI" ]; then
+    # Check if Docker is running
+    if ! docker info &> /dev/null; then
+      echo "❌ Docker is not running!"
+      echo "Please start Docker Desktop and try again."
+      exit 1
+    fi
 
-  # Start Docker services
-  echo "📦 Starting Docker services..."
-  if docker compose version &> /dev/null; then
-    docker compose up -d redis postgres
+    # Start Docker services
+    echo "📦 Starting Docker services..."
+    if docker compose version &> /dev/null; then
+      docker compose up -d redis postgres
+    else
+      docker-compose up -d redis postgres
+    fi
+
+    # Wait for services
+    echo "⏳ Waiting for services..."
+    sleep 3
   else
-    docker-compose up -d redis postgres
+    echo "📦 Using CI-provided Redis and PostgreSQL services..."
   fi
 
-  # Wait for services
-  echo "⏳ Waiting for services..."
-  sleep 3
-
-  # Run migrations if needed
-  if [ ! -f ".migrations-done" ]; then
+  # Run migrations if needed (skip in CI as migrations are run in workflow)
+  if [ -z "$CI" ] && [ ! -f ".migrations-done" ]; then
     echo "🔄 Running migrations..."
     DATABASE_URL="postgresql://postgres:postgres@localhost:5433/synckairos?sslmode=disable" node scripts/direct-migrate.js
     touch .migrations-done
