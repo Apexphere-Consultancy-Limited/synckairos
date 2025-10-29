@@ -57,6 +57,8 @@ describe('REST API Rate Limiting Tests', () => {
     // Clear rate limit keys to ensure test isolation
     // This prevents rate limit exhaustion in one test from affecting others
     await clearRateLimitKeys(redis)
+    // Add small delay to ensure Redis deletion is fully processed
+    await new Promise(resolve => setTimeout(resolve, 10))
   })
 
   describe('Switch Cycle Rate Limiting', () => {
