@@ -85,6 +85,9 @@ export const generalLimiter = rateLimit({
     return req.ip || 'unknown'
   },
 
+  // Disable validations for custom key generator (we handle our own logic)
+  validate: false,
+
   handler: (_req, res) => {
     logger.warn({ ip: _req.ip, path: _req.path }, 'General rate limit exceeded')
     res.status(429).json({
