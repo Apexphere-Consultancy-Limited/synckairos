@@ -1,6 +1,9 @@
 // SyncKairos v2.0 - Main Entry Point
 // Redis-first distributed synchronization service
 
+// Load environment variables first (from .env and .env.local)
+import '@/config/env'
+
 import http from 'http'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { RedisStateManager } from '@/state/RedisStateManager'

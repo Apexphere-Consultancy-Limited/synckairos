@@ -24,8 +24,8 @@ export default defineConfig({
   // Reporter configuration
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'test-results/e2e-html' }],
-    ['json', { outputFile: 'test-results/e2e-results.json' }]
+    ['html', { outputFolder: 'playwright-report' }],
+    ['json', { outputFile: 'playwright-report/results.json' }]
   ],
 
   use: {
@@ -82,5 +82,16 @@ export default defineConfig({
   workers: process.env.CI ? 2 : 4,
 
   // Limit the number of failures before stopping
-  maxFailures: process.env.CI ? 10 : undefined
+  maxFailures: process.env.CI ? 10 : undefined,
+
+  // Start server for local E2E tests (only in CI or when not using e2e-with-server.sh)
+  // The e2e-with-server.sh script handles server lifecycle management locally
+  webServer: env.baseURL.includes('localhost') && process.env.CI ? {
+    command: './scripts/start-local.sh',
+    url: 'http://localhost:3000/health',
+    timeout: 120000, // 2 minutes for server startup
+    reuseExistingServer: false, // Always start fresh in CI
+    stdout: 'pipe',
+    stderr: 'pipe'
+  } : undefined
 })

@@ -344,20 +344,30 @@ export const SwitchCycleResponseSchema = z
 /**
  * Error Response Schema
  * Standard error response format
+ * Matches the format from errorHandler.ts middleware
  */
 export const ErrorResponseSchema = z
   .object({
-    error: z.string().openapi({
-      description: 'Human-readable error message',
-      example: 'Session not found',
-    }),
-    code: z.string().optional().openapi({
-      description: 'Error code',
-      example: 'SESSION_NOT_FOUND',
-    }),
-    details: z.record(z.string(), z.any()).optional().openapi({
-      description: 'Additional error details',
-    }),
+    error: z
+      .object({
+        code: z.string().openapi({
+          description: 'Error code',
+          example: 'SESSION_NOT_FOUND',
+        }),
+        message: z.string().openapi({
+          description: 'Human-readable error message',
+          example: 'Session not found',
+        }),
+        details: z.record(z.string(), z.any()).optional().openapi({
+          description: 'Additional error details',
+        }),
+        stack: z.string().optional().openapi({
+          description: 'Error stack trace (development mode only)',
+        }),
+      })
+      .openapi({
+        description: 'Error details object',
+      }),
   })
   .openapi('ErrorResponse', {
     description: 'Standard error response format',

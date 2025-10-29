@@ -57,7 +57,11 @@ test('pause and resume session @comprehensive @api', async ({ request }) => {
 
   const { data: pausedState } = pausedResult.data!
   expect(pausedState.status).toBe('paused')
-  const savedTimeRemaining = pausedState.time_remaining_ms
+
+  // Get time_remaining from the active participant
+  const activeParticipant = pausedState.participants.find(p => p.is_active)
+  expect(activeParticipant).toBeDefined()
+  const savedTimeRemaining = activeParticipant!.time_remaining_ms
 
   // Verify time_remaining is approximately 298000ms (300000 - 2000)
   expect(savedTimeRemaining).toBeLessThan(300000)
@@ -80,16 +84,23 @@ test('pause and resume session @comprehensive @api', async ({ request }) => {
   const { data: resumedState } = resumedResult.data!
   expect(resumedState.status).toBe('running')
 
-  // Time remaining should be approximately the same (±50ms tolerance)
-  expect(Math.abs(resumedState.time_remaining_ms - savedTimeRemaining)).toBeLessThan(50)
+  // Get time_remaining from the active participant after resume
+  const resumedActiveParticipant = resumedState.participants.find(p => p.is_active)
+  expect(resumedActiveParticipant).toBeDefined()
+  const resumedTimeRemaining = resumedActiveParticipant!.time_remaining_ms
 
-  console.log(`✅ Resumed with ${resumedState.time_remaining_ms}ms remaining after 1s pause (±50ms tolerance met)`)
+  // Time remaining should be approximately the same (±50ms tolerance)
+  expect(Math.abs(resumedTimeRemaining - savedTimeRemaining)).toBeLessThan(50)
+
+  console.log(`✅ Resumed with ${resumedTimeRemaining}ms remaining after 1s pause (±50ms tolerance met)`)
 
   // Continue session to verify it works after resume
   const switchRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/switch`)
   expect(switchRes.status()).toBe(200)
-  const switchData = await switchRes.json()
-  expect(switchData.new_active_participant_id).toBe(TEST_PARTICIPANTS.P2)
+  const switchJson = await switchRes.json()
+
+  // Switch response has { data: { active_participant_id, ... } }
+  expect(switchJson.data.active_participant_id).toBe(TEST_PARTICIPANTS.P2)
 
   console.log(`✅ Session continues normally after resume`)
 })
@@ -120,7 +131,8 @@ test('pause during cycle transition @comprehensive', async ({ request }) => {
 
   // Final state should be consistent
   const getRes = await request.get(`${env.baseURL}/v1/sessions/${sessionId}`)
-  const state = await getRes.json()
+  const stateResponse = await getRes.json()
+  const state = stateResponse.data
   expect(['running', 'paused']).toContain(state.status)
 
   console.log(`✅ Concurrent pause/switch handled gracefully (final status: ${state.status})`)

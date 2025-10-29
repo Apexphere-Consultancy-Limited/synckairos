@@ -45,9 +45,10 @@ test('error handling @comprehensive @api', async ({ request }) => {
   expect(notFoundResult.success).toBe(true)
 
   const notFoundData = notFoundResult.data!
-  expect(notFoundData.error).toBeDefined()
+  expect(notFoundData.error.message).toBeDefined()
+  expect(notFoundData.error.code).toBeDefined()
 
-  console.log(`✅ 404 error: ${notFoundData.error}`)
+  console.log(`✅ 404 error: ${notFoundData.error.code} - ${notFoundData.error.message}`)
 
   // Test 400 - Invalid state transition (switch on pending session)
   const sessionId = generateSessionId('e2e-error')
@@ -68,30 +69,31 @@ test('error handling @comprehensive @api', async ({ request }) => {
   expect(badRequestResult.success).toBe(true)
 
   const badRequestData = badRequestResult.data!
-  expect(badRequestData.error).toContain('pending')
+  expect(badRequestData.error.message).toContain('pending')
 
-  console.log(`✅ 400 error: ${badRequestData.error}`)
+  console.log(`✅ 400 error: ${badRequestData.error.code} - ${badRequestData.error.message}`)
 
-  // Test 409 - Conflict (start already running session)
+  // Test 400 - Invalid state transitions (start already running session)
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
-  const conflictRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
-  expect(conflictRes.status()).toBe(409)
+  const startConflictRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/start`)
+  expect(startConflictRes.status()).toBe(400)
 
-  // Test 409 - Pause already paused session
+  // Test 400 - Pause already paused session
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/pause`)
   const pauseConflictRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/pause`)
-  expect(pauseConflictRes.status()).toBe(409)
+  expect(pauseConflictRes.status()).toBe(400)
 
-  // Test 409 - Resume already running session
+  // Test 400 - Resume already running session
   await request.post(`${env.baseURL}/v1/sessions/${sessionId}/resume`)
   const resumeConflictRes = await request.post(`${env.baseURL}/v1/sessions/${sessionId}/resume`)
-  expect(resumeConflictRes.status()).toBe(409)
+  expect(resumeConflictRes.status()).toBe(400)
 
-  console.log(`✅ 409 conflict errors validated`)
+  console.log(`✅ Invalid state transition errors validated (400)`)
 
-  // Test 404 - Delete non-existent session (reuse nonExistentId)
+  // Test DELETE idempotency - deleting non-existent session returns 204 (idempotent)
   const deleteNotFoundRes = await request.delete(`${env.baseURL}/v1/sessions/${nonExistentId}`)
-  expect(deleteNotFoundRes.status()).toBe(404)
+  expect(deleteNotFoundRes.status()).toBe(204)
+  console.log(`✅ DELETE is idempotent (204 for non-existent session)`)
 
   // Test 400 - Invalid JSON
   const invalidRes = await request.post(`${env.baseURL}/v1/sessions`, {

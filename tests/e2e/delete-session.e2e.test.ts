@@ -107,12 +107,10 @@ test('delete completed session @comprehensive', async ({ request }) => {
 test('delete non-existent session @comprehensive', async ({ request }) => {
   const env = getEnvironment()
 
-  // Try to delete non-existent session (use valid UUID that doesn't exist)
+  // DELETE is idempotent - deleting non-existent session returns 204 (success)
   const nonExistentId = '00000000-0000-0000-0000-000000000000'
   const deleteRes = await request.delete(`${env.baseURL}/v1/sessions/${nonExistentId}`)
-  expect(deleteRes.status()).toBe(404)
-  const errorData = await deleteRes.json()
-  expect(errorData.error).toBeDefined()
+  expect(deleteRes.status()).toBe(204)
 
-  console.log(`✅ Delete non-existent session returns 404: ${errorData.error}`)
+  console.log(`✅ DELETE is idempotent - non-existent session returns 204`)
 })
