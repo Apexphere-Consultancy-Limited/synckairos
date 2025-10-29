@@ -319,13 +319,29 @@ jobs:
           cp -r coverage-integration/* coverage/ 2>/dev/null || true
           echo "✅ Merged coverage reports from unit and integration tests"
 
+      - name: Validate SonarQube configuration
+        id: validate_sonar
+        run: |
+          if [ -z "${{ secrets.SONAR_TOKEN }}" ] || [ -z "${{ secrets.SONAR_HOST_URL }}" ]; then
+            echo "⚠️  SonarQube secrets not configured - skipping scan"
+            echo "To enable SonarQube analysis:"
+            echo "1. Add SONAR_TOKEN secret to repository"
+            echo "2. Add SONAR_HOST_URL secret (must include https://)"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ SonarQube configuration found"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: SonarQube Scan
+        if: steps.validate_sonar.outputs.skip != 'true'
         uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: SonarQube Quality Gate check
+        if: steps.validate_sonar.outputs.skip != 'true'
         uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
         env:
