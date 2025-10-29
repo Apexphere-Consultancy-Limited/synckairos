@@ -226,8 +226,8 @@ describe('REST API Rate Limiting Tests', () => {
     it('should include rate limit headers in response', async () => {
       const sessionId = uniqueSessionId()
 
-      // Create and start session
-      await request(app)
+      // Create session - verify it succeeds
+      const createRes = await request(app)
         .post('/v1/sessions')
         .send({
           session_id: sessionId,
@@ -238,7 +238,12 @@ describe('REST API Rate Limiting Tests', () => {
           ],
           total_time_ms: 1200000,
         })
-      await request(app).post(`/v1/sessions/${sessionId}/start`)
+        .expect(201)
+
+      // Start session - verify it succeeds
+      await request(app)
+        .post(`/v1/sessions/${sessionId}/start`)
+        .expect(200)
 
       // Make a switch request (should succeed with clean rate limits)
       const response = await request(app)
