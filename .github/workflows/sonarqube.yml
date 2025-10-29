@@ -207,6 +207,33 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable
           NODE_ENV: test
 
+      - name: Start SyncKairos server in background
+        run: |
+          NODE_ENV=development \
+          REDIS_HOST=localhost \
+          REDIS_PORT=6379 \
+          REDIS_URL=redis://localhost:6379 \
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable \
+          nohup pnpm tsx src/index.ts > server.log 2>&1 &
+          echo $! > server.pid
+
+          # Wait for server to be healthy
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ Server is healthy"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+
+          if ! curl -f http://localhost:3000/health > /dev/null 2>&1; then
+            echo "❌ Server failed to start"
+            cat server.log
+            exit 1
+          fi
+
       - name: Run E2E tests
         run: pnpm test:e2e
         env:
@@ -216,6 +243,15 @@ jobs:
           REDIS_URL: redis://localhost:6379
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable
           E2E_ENV: local
+
+      - name: Stop server and show logs
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+          fi
+          echo "=== Server logs ==="
+          cat server.log || true
 
       - name: Upload E2E test results
         if: always()
