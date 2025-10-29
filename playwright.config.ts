@@ -24,8 +24,8 @@ export default defineConfig({
   // Reporter configuration
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'test-results/e2e-html' }],
-    ['json', { outputFile: 'test-results/e2e-results.json' }]
+    ['html', { outputFolder: 'playwright-report' }],
+    ['json', { outputFile: 'playwright-report/results.json' }]
   ],
 
   use: {
@@ -82,5 +82,17 @@ export default defineConfig({
   workers: process.env.CI ? 2 : 4,
 
   // Limit the number of failures before stopping
-  maxFailures: process.env.CI ? 10 : undefined
+  maxFailures: process.env.CI ? 10 : undefined,
+
+  // Server management:
+  // - In CI: System under test is already running (started by CI workflow), no webServer needed
+  // - Locally: Use webServer to start local dev environment for convenience
+  webServer: env.baseURL.includes('localhost') && !process.env.CI ? {
+    command: './scripts/start-local.sh',
+    url: 'http://localhost:3000/health',
+    timeout: 120000, // 2 minutes for server startup
+    reuseExistingServer: true, // Reuse if already running
+    stdout: 'pipe',
+    stderr: 'pipe'
+  } : undefined
 })

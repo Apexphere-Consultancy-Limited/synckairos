@@ -298,8 +298,8 @@ test('WebSocket reconnection with STATE_SYNC @websocket', async ({ request }) =>
     client = await createWebSocketClient(sessionId, env.wsURL)
     console.log(`🔌 Reconnected client`)
 
-    // Request current state
-    client.ws.send(JSON.stringify({ type: 'REQUEST_SYNC' }))
+    // Request current state using RECONNECT message
+    client.ws.send(JSON.stringify({ type: 'RECONNECT' }))
 
     // Should receive STATE_SYNC with current state (active_participant_id = TEST_PARTICIPANTS.P2)
     const sync = await waitForStateUpdate(client, (s) => s.active_participant_id === TEST_PARTICIPANTS.P2)

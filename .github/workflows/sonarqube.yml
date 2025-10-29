@@ -1,4 +1,4 @@
-name: SonarQube Analysis
+name: CI/CD Pipeline
 
 on:
   push:
@@ -9,8 +9,56 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  sonarqube:
-    name: SonarQube Code Analysis
+  # Unit Tests - Fast, no external dependencies
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: pnpm test:coverage:unit
+        env:
+          NODE_ENV: test
+
+      - name: Upload unit test coverage for SonarQube
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit
+          path: coverage/
+          retention-days: 1
+
+  # Integration Tests - Requires Redis and PostgreSQL
+  integration-tests:
+    name: Integration Tests
     runs-on: ubuntu-latest
 
     services:
@@ -41,8 +89,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for better relevancy of analysis
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -76,21 +122,226 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable
           NODE_ENV: test
 
-      - name: Run tests with coverage
-        run: pnpm test:coverage
+      - name: Run integration tests with coverage
+        run: pnpm test:coverage:integration
         env:
           NODE_ENV: test
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+          REDIS_URL: redis://localhost:6379
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable
 
+      - name: Upload integration test coverage for SonarQube
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration
+          path: coverage/
+          retention-days: 1
+
+  # E2E Tests - End-to-end tests with Playwright
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: synckairos
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run database migrations
+        run: pnpm migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable
+          NODE_ENV: test
+
+      - name: Start SyncKairos server in background
+        run: |
+          NODE_ENV=development \
+          REDIS_HOST=localhost \
+          REDIS_PORT=6379 \
+          REDIS_URL=redis://localhost:6379 \
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable \
+          nohup pnpm tsx src/index.ts > server.log 2>&1 &
+          echo $! > server.pid
+
+          # Wait for server to be healthy
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ Server is healthy"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+
+          if ! curl -f http://localhost:3000/health > /dev/null 2>&1; then
+            echo "❌ Server failed to start"
+            cat server.log
+            exit 1
+          fi
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        env:
+          NODE_ENV: test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_URL: redis://localhost:6379
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable
+          E2E_ENV: local
+
+      - name: Stop server and show logs
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+          fi
+          echo "=== Server logs ==="
+          cat server.log || true
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # SonarQube Analysis - Merges coverage from all test stages
+  sonarqube:
+    name: SonarQube Code Analysis
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better relevancy of analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download unit test coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-unit
+          path: coverage-unit/
+
+      - name: Download integration test coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-integration
+          path: coverage-integration/
+
+      - name: Merge coverage reports
+        run: |
+          mkdir -p coverage
+          cp -r coverage-unit/* coverage/ 2>/dev/null || true
+          cp -r coverage-integration/* coverage/ 2>/dev/null || true
+          echo "✅ Merged coverage reports from unit and integration tests"
+
+      - name: Validate SonarQube configuration
+        id: validate_sonar
+        run: |
+          if [ -z "${{ secrets.SONAR_TOKEN }}" ] || [ -z "${{ secrets.SONAR_HOST_URL }}" ]; then
+            echo "⚠️  SonarQube secrets not configured - skipping scan"
+            echo "To enable SonarQube analysis:"
+            echo "1. Add SONAR_TOKEN secret to repository"
+            echo "2. Add SONAR_HOST_URL secret (must include https://)"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ SonarQube configuration found"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: SonarQube Scan
+        if: steps.validate_sonar.outputs.skip != 'true'
         uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: SonarQube Quality Gate check
+        if: steps.validate_sonar.outputs.skip != 'true'
         uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
         env:

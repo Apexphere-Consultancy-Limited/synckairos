@@ -12,6 +12,7 @@ import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
+import { clearRateLimitKeys } from '../helpers/rateLimitHelper'
 
 describe('REST API Concurrency Tests', () => {
   let app: Application
@@ -49,8 +50,8 @@ describe('REST API Concurrency Tests', () => {
   })
 
   beforeEach(async () => {
-    // Clear Redis before each test
-    // No longer needed - using unique prefix per test suite
+    // Clear rate limit keys to ensure test isolation
+    await clearRateLimitKeys(redis)
   })
 
   // Helper to generate unique session and participant IDs

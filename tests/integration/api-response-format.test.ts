@@ -12,6 +12,7 @@ import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
+import { clearRateLimitKeys } from '../helpers/rateLimitHelper'
 
 // Helper functions for generating unique IDs
 const uniqueSessionId = (_suffix?: string) => uuidv4()
@@ -53,12 +54,8 @@ describe('REST API Response Format Tests', () => {
   })
 
   beforeEach(async () => {
-
-  // Helper to generate unique session and participant IDs
-  const uniqueSessionId = () => uuidv4()
-  const uniqueParticipantId = () => uuidv4()
-    // Clear Redis before each test
-    // No longer needed - using unique prefix per test suite
+    // Clear rate limit keys to ensure test isolation
+    await clearRateLimitKeys(redis)
   })
 
   describe('Success Response Format', () => {

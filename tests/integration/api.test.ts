@@ -12,6 +12,7 @@ import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
+import { clearRateLimitKeys } from '../helpers/rateLimitHelper'
 
 describe('REST API Integration Tests', () => {
   let app: Application
@@ -45,6 +46,11 @@ describe('REST API Integration Tests', () => {
     await dbQueue.close()
     await redis.quit()
     await pubSub.quit()
+  })
+
+  beforeEach(async () => {
+    // Clear rate limit keys to ensure test isolation
+    await clearRateLimitKeys(redis)
   })
 
   // Helper to generate unique session IDs for each test (uses UUID v4)

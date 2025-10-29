@@ -13,6 +13,7 @@ import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
+import { clearRateLimitKeys } from '../helpers/rateLimitHelper'
 
 // Helper functions for generating unique IDs
 const uniqueSessionId = (_suffix?: string) => uuidv4()
@@ -68,7 +69,10 @@ describe('Multi-Instance API Integration Tests', () => {
     await pubSub2.quit()
   })
 
-  // No need for beforeEach cleanup - using unique prefix per test suite
+  beforeEach(async () => {
+    // Clear rate limit keys to ensure test isolation
+    await clearRateLimitKeys(redis1)
+  })
 
   describe('Session State Sharing Across Instances', () => {
     it('should allow Instance 2 to read session created by Instance 1', async () => {

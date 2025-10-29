@@ -69,16 +69,7 @@ else
   echo "✅ Migrations already run (delete .migrations-done to re-run)"
 fi
 
-# Step 4: Build if needed (check if dist exists and is newer than src)
-if [ ! -d "dist" ] || [ "$(find src -newer dist 2>/dev/null | wc -l)" -gt 0 ]; then
-  echo "🔨 Building application..."
-  pnpm build
-  echo "✅ Build complete"
-else
-  echo "✅ Build up to date"
-fi
-
-# Step 5: Start the application
+# Step 4: Start the application
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🎉 Starting SyncKairos..."
@@ -93,4 +84,4 @@ echo ""
 echo "🛑 Press Ctrl+C to stop"
 echo ""
 
-NODE_ENV=development node dist/index.js
+NODE_ENV=development tsx src/index.ts
