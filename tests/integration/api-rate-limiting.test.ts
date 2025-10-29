@@ -58,11 +58,12 @@ describe('REST API Rate Limiting Tests', () => {
     // This prevents rate limit exhaustion in one test from affecting others
     await clearRateLimitKeys(redis)
     // Add small delay to ensure Redis deletion is fully processed
+    // With PID-based isolation, each test file has its own rate limit buckets
     await new Promise(resolve => setTimeout(resolve, 10))
   })
 
   describe('Switch Cycle Rate Limiting', () => {
-    it('should return 429 when switchCycle rate limit exceeded (50 req/sec per session)', async () => {
+    it('should return 429 when switchCycle rate limit exceeded (10 req/sec per session)', async () => {
       // Create session
       const sessionId = uniqueSessionId()
       await request(app)
@@ -81,9 +82,9 @@ describe('REST API Rate Limiting Tests', () => {
       // Start session
       await request(app).post(`/v1/sessions/${sessionId}/start`).expect(200)
 
-      // Make 51 requests rapidly (limit is 50 req/sec per session in test env)
+      // Make 11 requests rapidly (limit is 10 req/sec per session)
       const requests = []
-      for (let i = 0; i < 51; i++) {
+      for (let i = 0; i < 11; i++) {
         requests.push(request(app).post(`/v1/sessions/${sessionId}/switch`))
       }
 
@@ -93,7 +94,7 @@ describe('REST API Rate Limiting Tests', () => {
 
       // At least one request should be rate limited
       expect(rateLimited.length).toBeGreaterThan(0)
-      expect(successful.length).toBeLessThanOrEqual(50)
+      expect(successful.length).toBeLessThanOrEqual(10)
 
       // Verify 429 response structure
       expect(rateLimited[0].body.error).toBeDefined()
@@ -119,8 +120,8 @@ describe('REST API Rate Limiting Tests', () => {
         })
       await request(app).post(`/v1/sessions/${sessionId}/start`)
 
-      // Hit rate limit (51 requests with limit of 50)
-      const requests1 = Array.from({ length: 51 }, () =>
+      // Hit rate limit (11 requests with limit of 10)
+      const requests1 = Array.from({ length: 11 }, () =>
         request(app).post(`/v1/sessions/${sessionId}/switch`)
       )
       const responses1 = await Promise.all(requests1)
@@ -158,8 +159,8 @@ describe('REST API Rate Limiting Tests', () => {
         await request(app).post(`/v1/sessions/${sessionId}/start`)
       }
 
-      // Exhaust rate limit for session1 (51 requests with limit of 50)
-      const requests1 = Array.from({ length: 51 }, () =>
+      // Exhaust rate limit for session1 (11 requests with limit of 10)
+      const requests1 = Array.from({ length: 11 }, () =>
         request(app).post(`/v1/sessions/${session1Id}/switch`)
       )
       await Promise.all(requests1)
@@ -175,10 +176,10 @@ describe('REST API Rate Limiting Tests', () => {
   })
 
   describe('General Rate Limiting', () => {
-    it('should return 429 when general rate limit exceeded (500 req/min per IP)', async () => {
-      // Make 501 requests rapidly to /v1/time endpoint
+    it('should return 429 when general rate limit exceeded (100 req/min per IP)', async () => {
+      // Make 101 requests rapidly to /v1/time endpoint
       // (Using /v1/time to avoid session setup overhead)
-      const requests = Array.from({ length: 501 }, () =>
+      const requests = Array.from({ length: 101 }, () =>
         request(app).get('/v1/time')
       )
 
@@ -188,7 +189,7 @@ describe('REST API Rate Limiting Tests', () => {
 
       // At least one request should be rate limited
       expect(rateLimited.length).toBeGreaterThan(0)
-      expect(successful.length).toBeLessThanOrEqual(500)
+      expect(successful.length).toBeLessThanOrEqual(100)
 
       // Verify 429 response structure
       expect(rateLimited[0].body.error).toBeDefined()

@@ -20,6 +20,10 @@ const logger = createComponentLogger('RateLimit')
 // Determine if we're in test/development mode
 const isTestOrDev = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development'
 
+// In test mode, use process PID to isolate rate limits between parallel test processes
+// This prevents rate limit exhaustion in one test file from affecting others
+const TEST_WORKER_ID = isTestOrDev ? `w${process.pid}:` : ''
+
 // Configurable rate limits via environment variables
 const GENERAL_RATE_LIMIT = parseInt(process.env.RATE_LIMIT_GENERAL || '100', 10)
 const SWITCH_RATE_LIMIT = parseInt(process.env.RATE_LIMIT_SWITCH || '10', 10)
@@ -76,10 +80,10 @@ export const generalLimiter = rateLimit({
       const sessionMatch = req.path.match(/\/v1\/sessions\/([a-zA-Z0-9-]+)/)
       if (sessionMatch) {
         const sessionId = sessionMatch[1]
-        return `test:${sessionId}` // Each session gets its own rate limit bucket
+        return `${TEST_WORKER_ID}test:${sessionId}` // Each session gets its own rate limit bucket
       }
       // Fallback to IP for non-session routes (like POST /v1/sessions)
-      return `test:${req.ip}`
+      return `${TEST_WORKER_ID}test:${req.ip}`
     }
     // Production: Use IP address
     return req.ip || 'unknown'
@@ -124,7 +128,8 @@ export const switchCycleLimiter = rateLimit({
   keyGenerator: req => {
     // Use session ID as rate limit key
     const sessionId = req.params.id || 'unknown'
-    return sessionId
+    // In test mode, prefix with worker ID to isolate parallel test processes
+    return isTestOrDev ? `${TEST_WORKER_ID}${sessionId}` : sessionId
   },
   skipSuccessfulRequests: false, // Count all requests, not just failed ones
   handler: (req, res) => {
