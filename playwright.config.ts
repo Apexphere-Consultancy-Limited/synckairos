@@ -84,13 +84,14 @@ export default defineConfig({
   // Limit the number of failures before stopping
   maxFailures: process.env.CI ? 10 : undefined,
 
-  // Start server for local E2E tests (only in CI or when not using e2e-with-server.sh)
-  // The e2e-with-server.sh script handles server lifecycle management locally
+  // Server management:
+  // - In CI: e2e-with-server.sh script starts the server, webServer should reuse it
+  // - Locally: e2e-with-server.sh handles everything, webServer is undefined
   webServer: env.baseURL.includes('localhost') && process.env.CI ? {
     command: './scripts/start-local.sh',
     url: 'http://localhost:3000/health',
     timeout: 120000, // 2 minutes for server startup
-    reuseExistingServer: false, // Always start fresh in CI
+    reuseExistingServer: true, // Reuse server started by e2e-with-server.sh
     stdout: 'pipe',
     stderr: 'pipe'
   } : undefined
