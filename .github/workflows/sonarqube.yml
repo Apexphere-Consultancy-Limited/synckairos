@@ -207,8 +207,8 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable
           NODE_ENV: test
 
-      - name: Run E2E tests with coverage
-        run: pnpm test:coverage:e2e
+      - name: Run E2E tests
+        run: pnpm test:e2e
         env:
           NODE_ENV: test
           REDIS_HOST: localhost
@@ -216,13 +216,6 @@ jobs:
           REDIS_URL: redis://localhost:6379
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/synckairos?sslmode=disable
           E2E_ENV: local
-
-      - name: Upload E2E test coverage for SonarQube
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-e2e
-          path: coverage/
-          retention-days: 1
 
       - name: Upload E2E test results
         if: always()
@@ -283,19 +276,12 @@ jobs:
           name: coverage-integration
           path: coverage-integration/
 
-      - name: Download E2E test coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-e2e
-          path: coverage-e2e/
-
       - name: Merge coverage reports
         run: |
           mkdir -p coverage
           cp -r coverage-unit/* coverage/ 2>/dev/null || true
           cp -r coverage-integration/* coverage/ 2>/dev/null || true
-          cp -r coverage-e2e/* coverage/ 2>/dev/null || true
-          echo "✅ Merged coverage reports from all test stages"
+          echo "✅ Merged coverage reports from unit and integration tests"
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@master
