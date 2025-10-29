@@ -12,6 +12,7 @@ import { DBWriteQueue } from '@/state/DBWriteQueue'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
+import { clearRateLimitKeys } from '../helpers/rateLimitHelper'
 
 // Helper functions for generating unique IDs
 const uniqueSessionId = (_suffix?: string) => uuidv4()
@@ -53,12 +54,9 @@ describe('REST API Rate Limiting Tests', () => {
   })
 
   beforeEach(async () => {
-
-  // Helper to generate unique session and participant IDs
-  const uniqueSessionId = () => uuidv4()
-  const uniqueParticipantId = () => uuidv4()
-    // Clear Redis before each test (including rate limit counters)
-    // No longer needed - using unique prefix per test suite
+    // Clear rate limit keys to ensure test isolation
+    // This prevents rate limit exhaustion in one test from affecting others
+    await clearRateLimitKeys(redis)
   })
 
   describe('Switch Cycle Rate Limiting', () => {
@@ -242,16 +240,15 @@ describe('REST API Rate Limiting Tests', () => {
         })
       await request(app).post(`/v1/sessions/${sessionId}/start`)
 
-      // Make a switch request (may be rate limited if running after other tests)
-      const response = await request(app).post(`/v1/sessions/${sessionId}/switch`)
+      // Make a switch request (should succeed with clean rate limits)
+      const response = await request(app)
+        .post(`/v1/sessions/${sessionId}/switch`)
+        .expect(200)
 
-      // Check for RateLimit-* headers (present in both 200 and 429 responses)
+      // Check for RateLimit-* headers
       expect(response.headers['ratelimit-limit']).toBeDefined()
       expect(response.headers['ratelimit-remaining']).toBeDefined()
       expect(response.headers['ratelimit-reset']).toBeDefined()
-
-      // Verify response is either successful or rate limited
-      expect([200, 429]).toContain(response.status)
     })
   })
 })

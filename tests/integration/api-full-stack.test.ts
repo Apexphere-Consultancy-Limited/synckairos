@@ -14,6 +14,7 @@ import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 import { pool } from '@/config/database'
 import { SyncMode } from '@/types/session'
 import type Redis from 'ioredis'
+import { clearRateLimitKeys } from '../helpers/rateLimitHelper'
 
 // Helper functions for generating unique IDs
 const uniqueSessionId = (_suffix?: string) => uuidv4()
@@ -56,13 +57,8 @@ describe('Full Stack Integration Tests', () => {
   })
 
   beforeEach(async () => {
-
-  // Helper to generate unique session and participant IDs
-  const uniqueSessionId = () => uuidv4()
-  const uniqueParticipantId = () => uuidv4()
-    // Clear Redis and PostgreSQL before each test
-    // No longer needed - using unique prefix per test suite
-    // Note: DBWriteQueue is async, so we can't easily clear audit tables
+    // Clear rate limit keys to ensure test isolation
+    await clearRateLimitKeys(redis)
   })
 
   describe('Complete Session Lifecycle with Audit Trail', () => {
