@@ -13,7 +13,7 @@ import {
   createRunningSession,
   createShortTimerSession,
   createMultiParticipantSession,
-} from '../fixtures/sampleSessions.js'
+} from '../../fixtures/sampleSessions.js'
 import { createRedisClient, createRedisPubSubClient } from '@/config/redis'
 
 describe('SyncEngine', () => {
