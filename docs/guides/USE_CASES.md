@@ -55,6 +55,7 @@ await syncClient.createSession({
     { participant_id: "white-player", participant_index: 0, total_time_ms: 600000 },
     { participant_id: "black-player", participant_index: 1, total_time_ms: 600000 }
   ],
+  total_time_ms: 1200000,  // Sum of participant times (optional - auto-calculated if omitted)
   increment_ms: 3000,
   active_participant_id: "white-player"
 })
@@ -67,6 +68,7 @@ await syncClient.createSession({
 await syncClient.createSession({
   session_id: "quiz-game-456",
   sync_mode: "global",  // Single timer for all students
+  total_time_ms: 1800000,  // 30 minutes total for entire quiz (required for global mode)
   time_per_cycle_ms: 30000,  // Maps to: time per question
   auto_advance: true,
   action_on_timeout: { type: "skip_cycle" }  // Skip question
@@ -81,13 +83,14 @@ await syncClient.createSession({
   session_id: "auction-789",
   sync_mode: "per_cycle",  // Maps to: per auction item
   participants: [
-    { participant_id: "bidder1", participant_index: 0 },
-    { participant_id: "bidder2", participant_index: 1 },
-    { participant_id: "bidder3", participant_index: 2 },
-    { participant_id: "bidder4", participant_index: 3 },
-    { participant_id: "bidder5", participant_index: 4 },
-    { participant_id: "bidder6", participant_index: 5 }
+    { participant_id: "bidder1", participant_index: 0, total_time_ms: 0 },
+    { participant_id: "bidder2", participant_index: 1, total_time_ms: 0 },
+    { participant_id: "bidder3", participant_index: 2, total_time_ms: 0 },
+    { participant_id: "bidder4", participant_index: 3, total_time_ms: 0 },
+    { participant_id: "bidder5", participant_index: 4, total_time_ms: 0 },
+    { participant_id: "bidder6", participant_index: 5, total_time_ms: 0 }
   ],
+  total_time_ms: 3600000,  // 1 hour total auction time (required for per_cycle mode)
   time_per_cycle_ms: 30000,  // 30 seconds per bid round
   action_on_timeout: { type: "skip_cycle" }  // Move to next item
 })
@@ -100,8 +103,8 @@ await syncClient.createSession({
 await syncClient.createSession({
   session_id: "speedrun-999",
   sync_mode: "count_up",
-  participants: [{ participant_id: "runner1", participant_index: 0 }],
-  max_time_ms: 3600000  // 1 hour max
+  participants: [{ participant_id: "runner1", participant_index: 0, total_time_ms: 0 }],
+  max_time_ms: 3600000  // 1 hour max (total_time_ms not used in count_up mode)
 })
 ```
 
@@ -112,10 +115,15 @@ await syncClient.createSession({
 await syncClient.createSession({
   session_id: "team-competition-111",
   sync_mode: "per_group",  // Maps to: per team
-  groups: [
-    { group_id: "team_red", total_time_ms: 300000, members: ["p1", "p2", "p3"] },
-    { group_id: "team_blue", total_time_ms: 300000, members: ["p4", "p5", "p6"] }
+  participants: [
+    { participant_id: "p1", participant_index: 0, total_time_ms: 100000, group_id: "team_red" },
+    { participant_id: "p2", participant_index: 1, total_time_ms: 100000, group_id: "team_red" },
+    { participant_id: "p3", participant_index: 2, total_time_ms: 100000, group_id: "team_red" },
+    { participant_id: "p4", participant_index: 3, total_time_ms: 100000, group_id: "team_blue" },
+    { participant_id: "p5", participant_index: 4, total_time_ms: 100000, group_id: "team_blue" },
+    { participant_id: "p6", participant_index: 5, total_time_ms: 100000, group_id: "team_blue" }
   ],
+  total_time_ms: 600000,  // Total time for all participants (required for per_group mode)
   active_group_id: "team_red"
 })
 ```
@@ -139,6 +147,7 @@ await syncClient.createSession({
     { participant_id: whitePlayer.id, participant_index: 0, total_time_ms: 600000 },
     { participant_id: blackPlayer.id, participant_index: 1, total_time_ms: 600000 }
   ],
+  total_time_ms: 1200000,  // Optional - will auto-calculate if omitted
   increment_ms: 3000,
   active_participant_id: whitePlayer.id,
   action_on_timeout: { type: 'game_over', winner: 'opponent' }
@@ -162,6 +171,8 @@ await switchCycle()
 await syncClient.createSession({
   session_id: quiz.id,
   sync_mode: 'per_cycle',
+  participants: [{ participant_id: 'quiz-timer', participant_index: 0, total_time_ms: 0 }],
+  total_time_ms: 1800000,  // 30 minutes total (required for per_cycle mode)
   time_per_cycle_ms: 30000,  // 30 seconds per question
   auto_advance: true,
   action_on_timeout: { type: 'skip_question' }
@@ -195,6 +206,7 @@ await syncClient.createSession({
     participant_index: i,
     total_time_ms: 0  // Not used in per_cycle mode
   })),
+  total_time_ms: 3600000,  // 1 hour total game time (required for per_cycle mode)
   time_per_cycle_ms: 30000,
   active_participant_id: dealer.id,
   auto_advance: true,
@@ -214,7 +226,8 @@ syncClient.on('timeout_occurred', ({ expired_participant_id }) => {
 await syncClient.createSession({
   session_id: "exam-123",
   sync_mode: "global",
-  time_per_cycle_ms: 3600000,  // 60 minutes
+  participants: [{ participant_id: 'exam-timer', participant_index: 0, total_time_ms: 0 }],
+  total_time_ms: 3600000,  // 60 minutes (required for global mode)
   auto_advance: false,
   action_on_timeout: {
     type: "end_session",
@@ -238,6 +251,8 @@ const { getParticipantTime } = useSyncKairos("exam-123", syncClient)
 await syncClient.createSession({
   session_id: meeting.id,
   sync_mode: 'per_cycle',
+  participants: [{ participant_id: 'meeting-timer', participant_index: 0, total_time_ms: 0 }],
+  total_time_ms: 3600000,  // 1 hour total meeting time (required for per_cycle mode)
   time_per_cycle_ms: 300000,  // 5 minutes per agenda item
   auto_advance: false,
   action_on_timeout: { type: 'notify', message: 'Time is up for this item' }

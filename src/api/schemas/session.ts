@@ -86,8 +86,13 @@ export const CreateSessionSchema = z
       .int('Total time must be an integer')
       .min(1000, 'Total time must be at least 1000ms (1 second)')
       .max(86400000, 'Total time cannot exceed 86400000ms (24 hours)')
+      .optional()
       .openapi({
-        description: 'Total time for the session (milliseconds)',
+        description: `Total time for the session (milliseconds).
+
+- For per_participant mode: Optional. Will auto-calculate as sum of participant times if omitted.
+- For global/per_cycle modes: Required. Represents the shared time pool or total budget.
+- For count_up mode: Not used (use max_time_ms instead).`,
         example: 120000,
       }),
     time_per_cycle_ms: z

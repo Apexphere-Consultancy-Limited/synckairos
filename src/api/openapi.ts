@@ -124,7 +124,9 @@ registry.registerPath({
   method: 'post',
   path: '/v1/sessions',
   summary: 'Create new session',
-  description: 'Creates a new synchronization session with participants and time allocation.',
+  description: `Creates a new synchronization session with participants and time allocation.
+
+**Note:** The \`total_time_ms\` field is optional for \`per_participant\` mode and will be auto-calculated as the sum of participant times if omitted. For other modes (\`global\`, \`per_cycle\`, \`per_group\`), it is required.`,
   tags: ['Sessions'],
   request: {
     body: {

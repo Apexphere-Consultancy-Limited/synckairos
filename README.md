@@ -15,13 +15,42 @@ High-performance real-time synchronization service with distributed-first archit
 
 ## Quick Start
 
+### Prerequisites
+- Node.js 20+
+- pnpm (`npm install -g pnpm`)
+- Docker Desktop running
+
 ### One-Command Setup (Recommended)
 ```bash
 # Install dependencies
 pnpm install
 
-# Start local environment (Docker Compose + migrations + app)
+# Start local environment (Docker + Redis + PostgreSQL + API)
 ./scripts/start-local.sh
+```
+
+**What it does:**
+- ✅ Starts Redis (port 6379)
+- ✅ Starts PostgreSQL (port 5433)
+- ✅ Runs database migrations
+- ✅ Starts SyncKairos API server (port 3000)
+
+**Access Points:**
+- API: `http://localhost:3000`
+- API Docs: `http://localhost:3000/api-docs/` (Interactive Swagger UI)
+- Health: `http://localhost:3000/health`
+- WebSocket: `ws://localhost:3000/ws`
+
+### Alternative: Development Mode (with auto-reload)
+```bash
+# Start infrastructure only
+docker compose up -d
+
+# Run migrations (first time only)
+pnpm migrate
+
+# Start server with hot-reload
+pnpm dev
 ```
 
 ### Manual Setup
@@ -33,7 +62,7 @@ pnpm install
 docker compose up -d
 
 # Run migrations
-DATABASE_URL="postgresql://postgres:postgres@localhost:5433/synckairos?sslmode=disable" node scripts/direct-migrate.js
+pnpm migrate
 
 # Build and run
 pnpm build
@@ -121,7 +150,11 @@ src/
 
 ### Local Development
 ```bash
-./scripts/start-local.sh   # Start local environment (one command)
+# One-command start (includes Docker services)
+./scripts/start-local.sh
+
+# OR development mode with hot-reload
+pnpm dev
 ```
 
 ### Testing & Building

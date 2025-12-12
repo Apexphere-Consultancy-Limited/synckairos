@@ -46,6 +46,23 @@ export function createSessionRoutes(syncEngine: SyncEngine): Router {
    */
   router.post(
     '/v1/sessions',
+    // Auto-calculate total_time_ms for per_participant mode if not provided
+    (req, res, next) => {
+      if (req.body.sync_mode === 'per_participant' && !req.body.total_time_ms) {
+        req.body.total_time_ms = req.body.participants?.reduce(
+          (sum: number, p: any) => sum + (p.total_time_ms || 0),
+          0
+        )
+        logger.info(
+          {
+            session_id: req.body.session_id,
+            calculated_total: req.body.total_time_ms
+          },
+          'Auto-calculated total_time_ms from participant times'
+        )
+      }
+      next()
+    },
     validateBody(CreateSessionSchema),
     async (req, res, next) => {
       try {

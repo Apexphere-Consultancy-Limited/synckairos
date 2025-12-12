@@ -84,4 +84,4 @@ echo ""
 echo "🛑 Press Ctrl+C to stop"
 echo ""
 
-NODE_ENV=development tsx src/index.ts
+NODE_ENV=development pnpm tsx src/index.ts

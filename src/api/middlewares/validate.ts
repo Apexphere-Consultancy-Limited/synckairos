@@ -54,12 +54,12 @@ export function validate(
       next()
     } catch (err) {
       if (err instanceof ZodError) {
-        // Format validation errors consistently
+        // Format validation errors consistently with helpful hints
         res.status(400).json({
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Request validation failed',
-            details: formatZodErrors(err),
+            details: formatZodErrors(err, req.body),
           },
         })
       } else {
