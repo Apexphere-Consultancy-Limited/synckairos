@@ -153,7 +153,8 @@ jobs:
     # come from the image instead of a host sudo apt-get install.
     container:
       image: mcr.microsoft.com/playwright:v1.56.1-noble
-      options: --init --ipc=host
+      # Give Chromium enough shared memory without exposing the shared host IPC.
+      options: --init --ipc=private --shm-size=1g
 
     services:
       redis:
